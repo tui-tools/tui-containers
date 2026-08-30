@@ -30,6 +30,9 @@ tags = ["privacy", "path"]
 regexTarget = "secret"
 regexes = [
   '''^(user|username|you|me|example|root|runner|ubuntu|debian|fedora|arch|vagrant|linuxbrew|Shared)$''',
+  # The stand-in people of the family's demos, fixtures and screenshots, and
+  # the placeholder every manual page reaches for. Invented, not captured.
+  '''^(ana|alice|bob|johndoe)$''',
 ]
 
 # Build output. CI scans a fresh checkout, where none of this exists, but a
@@ -39,11 +42,4 @@ regexes = [
 description = "Generated build output, never committed"
 paths = [
   '''(^|/)(bin|dist|__pycache__)/''',
-]
-# The v0.1 fixtures were captured on a machine whose docker data-root sat
-# under a home directory, so the developer-home-path rule matches them. They
-# are scrubbed to /var/lib/docker in the working tree; the commit that
-# introduced them is already tagged, so the history is left alone.
-commits = [
-  "274fbbdd8b5d4d30bf3751346765663043d03ade",
 ]
