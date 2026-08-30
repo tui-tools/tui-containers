@@ -261,7 +261,7 @@
     "no_daemon": true,
     "no_network": true,
     "static_binary": true,
-    "signed_releases": false,
+    "signed_releases": true,
     "config_paths": [
       "/etc/tui-containers/config.toml",
       "~/.config/tui-containers/config.toml"

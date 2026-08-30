@@ -2,6 +2,10 @@
 
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/tui-tools/tui-containers/badge)](https://scorecard.dev/viewer/?uri=github.com/tui-tools/tui-containers)
 
+> **Beta.** Beta: the family is days old and still changing. Package names,
+> flags and keys may move without notice until 1.0. Pin versions, and report
+> what breaks.
+
 Every container on the machine, on one screen. **Docker and Podman together**,
 worst first, with the **exact command line of every change previewed before it
 runs**.
@@ -123,7 +127,7 @@ Upgrades then arrive with the rest of your system updates.
 ### Any distribution, static binary
 
 ```sh
-curl -fsSL https://github.com/tui-tools/tui-containers/releases/download/v0.1.1/tui-containers_0.1.1_linux_amd64.tar.gz | tar -xz tui-containers
+curl -fsSL https://github.com/tui-tools/tui-containers/releases/download/v0.1.2/tui-containers_0.1.2_linux_amd64.tar.gz | tar -xz tui-containers
 sudo install -m0755 tui-containers /usr/local/bin/tui-containers
 ```
 
@@ -653,6 +657,16 @@ widgets, the config loader and the command runner shared by the whole family.
   otherwise reach, escalate — through `sudo -n`, which never prompts.
 - `tui-containers` re-reads every engine after every change, so what you see is
   what the engines report, not what the tool assumed.
+
+## Contributing
+
+Contributions arrive as pull requests: the workflow, the commit conventions and
+what a change is expected to carry with it are in the family's
+[CONTRIBUTING.md](https://github.com/tui-tools/tui-kit/blob/main/CONTRIBUTING.md).
+
+Vulnerabilities go through the family's
+[SECURITY.md](https://github.com/tui-tools/tui-kit/blob/main/SECURITY.md)
+instead, privately, never in a public issue.
 
 ## License
 
