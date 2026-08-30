@@ -66,14 +66,19 @@ type Real struct {
 // NewReal locates every engine on the machine.
 //
 // Neither engine is required and neither scope is. A server with Docker and no
-// Podman, a workstation with rootless Podman and no daemon at all, and a
-// machine with both are all ordinary, and the model says which it found rather
-// than refusing to start. The only failure is a machine with neither, which has
-// no containers for this tool to be about.
+// Podman, a workstation with rootless Podman and no daemon at all, a machine
+// with both, and a machine with neither are all ordinary, and the model says
+// which it found rather than refusing to start.
+//
+// A machine with neither engine used to be the one failure here, and that was
+// wrong in the way this family keeps finding: a server that runs no containers
+// is a normal server, not an unreadable one. The honest answer is an empty
+// engine list with the reason, which is what every screen and --check are
+// already written to render.
 //
 // caps come from the version probes, so no version number is written into this
 // package.
-func NewReal(sudoPrefix []string, dockerCaps, podmanCaps compat.Caps) (*Real, error) {
+func NewReal(sudoPrefix []string, dockerCaps, podmanCaps compat.Caps) *Real {
 	r := &Real{
 		halves:       map[container.Target]half{},
 		podmanHalves: map[container.Target]*podman.Backend{},
@@ -100,12 +105,7 @@ func NewReal(sudoPrefix []string, dockerCaps, podmanCaps compat.Caps) (*Real, er
 		}
 	}
 
-	if len(r.halves) == 0 {
-		return nil, fmt.Errorf(
-			"neither docker nor podman is installed on this machine, so there " +
-				"are no containers to show; use --demo to explore the UI")
-	}
-	return r, nil
+	return r
 }
 
 // add registers one half under its target.
@@ -132,6 +132,12 @@ func (r *Real) Describe() string {
 		}
 	}
 	if len(parts) == 0 {
+		// Nothing installed and something installed that stayed silent are
+		// different machines, and the header is the first place a reader looks
+		// to tell them apart.
+		if len(r.halves) == 0 {
+			return "no container engine is installed"
+		}
 		return "no engine answered"
 	}
 	return strings.Join(parts, " · ")
@@ -201,11 +207,12 @@ func (r *Real) Load(ctx context.Context) (container.Model, error) {
 	}
 	r.engines = model.Engines
 
-	if len(model.Available()) == 0 {
-		return container.Model{}, fmt.Errorf(
-			"engines: no container engine answered: %s", reasons(model.Engines))
-	}
-
+	// A model in which no engine answered is still the model. Returning an
+	// error here threw away the very thing that explains the empty screen —
+	// each engine's own reason for not answering — and left the caller with
+	// nothing to show but the error text. The engines list carries those
+	// reasons; the counts below are all zero, which is a fact and not a
+	// failure.
 	CrossReference(&model)
 	container.SortContainers(model.Containers)
 	container.SortImages(model.Images)
@@ -213,20 +220,6 @@ func (r *Real) Load(ctx context.Context) (container.Model, error) {
 	sortVolumes(model.Volumes)
 	sortNetworks(model.Networks)
 	return model, nil
-}
-
-// reasons joins what each engine said about why it did not answer.
-func reasons(engines []container.EngineInfo) string {
-	var parts []string
-	for _, info := range engines {
-		if info.Detail != "" {
-			parts = append(parts, info.Target.String()+": "+info.Detail)
-		}
-	}
-	if len(parts) == 0 {
-		return "no reason was given"
-	}
-	return strings.Join(parts, "; ")
 }
 
 // CrossReference fills in the facts that come from comparing the lists rather

@@ -190,7 +190,9 @@
           "impact": "an infra container — the pause process holding a pod's namespaces open — is dropped from the list. It runs nothing anyone wrote, and showing one per pod would be an unexplained extra row"
         }
       ],
-      "tested": []
+      "tested": [
+        "5.8.1"
+      ]
     }
   ],
   "install": {

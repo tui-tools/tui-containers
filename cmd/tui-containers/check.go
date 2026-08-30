@@ -128,9 +128,10 @@ func runCheck(backend container.Backend, backendCompat []compat.Result,
 
 	model, err := backend.Load(ctx)
 	if err != nil {
-		// No engine answered. That is a report, not a failure: the engines
-		// list carries what each of them said, and the exit code stays 0 so a
-		// smoke test can assert on the empty case.
+		// The read path itself broke. An engine-less machine no longer comes
+		// through here — that is an ordinary model with an empty engine list —
+		// so this is the genuinely degraded case, and it still prints a
+		// complete report with zeroes rather than nothing at all.
 		report.Model = container.Model{Backend: backend.Name()}
 		for _, state := range container.States {
 			report.States[string(state)] = 0

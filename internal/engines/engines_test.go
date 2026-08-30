@@ -391,3 +391,46 @@ func TestLogsCommandNamesWhatItRead(t *testing.T) {
 		}
 	}
 }
+
+// TestAMachineWithNoEngineIsAModelNotAnError covers the shape of machine none
+// of the lab's three guests could get past: neither docker nor podman
+// installed.
+//
+// It used to be the one failure NewReal had, and Load had a matching one for
+// the case where an engine is installed and answers nothing. Both threw away a
+// perfectly good empty model — and with it, in the second case, each engine's
+// own reason for staying silent. A server that runs no containers is a normal
+// server; the report is an empty engine list, every count a zero that is
+// present rather than absent, and no error.
+func TestAMachineWithNoEngineIsAModelNotAnError(t *testing.T) {
+	// Constructed rather than probed: what the host running these tests
+	// happens to have installed must not decide whether this case is covered.
+	backend := &Real{
+		halves:       map[container.Target]half{},
+		podmanHalves: map[container.Target]*podman.Backend{},
+	}
+
+	model, err := backend.Load(context.Background())
+	if err != nil {
+		t.Fatalf("Load on an engine-less machine returned %v, want no error", err)
+	}
+	if len(model.Engines) != 0 {
+		t.Errorf("engines = %d, want none", len(model.Engines))
+	}
+	if len(model.Containers) != 0 || len(model.Images) != 0 {
+		t.Errorf("containers = %d, images = %d, want none on a machine with no engine",
+			len(model.Containers), len(model.Images))
+	}
+	if model.Backend != backend.Name() {
+		t.Errorf("model backend = %q, want %q", model.Backend, backend.Name())
+	}
+	if len(model.Available()) != 0 {
+		t.Errorf("available engines = %d, want none", len(model.Available()))
+	}
+
+	// The header has to tell an absent engine from an installed one that said
+	// nothing, because they call for different things from the reader.
+	if got := backend.Describe(); got != "no container engine is installed" {
+		t.Errorf("Describe = %q", got)
+	}
+}

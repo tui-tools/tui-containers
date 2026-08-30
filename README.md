@@ -24,7 +24,7 @@ middle is unhealthy. `tui-containers` puts them on one list, in the
 ### Any distribution, static binary
 
 ```sh
-curl -fsSL https://github.com/tui-tools/tui-containers/releases/download/v{version}/tui-containers_{version}_linux_amd64.tar.gz | tar -xz tui-containers
+curl -fsSL https://github.com/tui-tools/tui-containers/releases/download/v0.1.0/tui-containers_0.1.0_linux_amd64.tar.gz | tar -xz tui-containers
 sudo install -m0755 tui-containers /usr/local/bin/tui-containers
 ```
 
@@ -463,7 +463,7 @@ than hidden; one below the minimum is marked as such and the tool still runs.
 | Binary | `podman` |
 | Version read with | `podman --version` |
 | Minimum | 4.0 |
-| Tested | none yet |
+| Tested | `5.8.1` |
 | Version-gated features | `quadlet` (since 4.4), `compose` (since 4.7), `update-restart` (since 5.0) |
 
 | Versions | What changes |

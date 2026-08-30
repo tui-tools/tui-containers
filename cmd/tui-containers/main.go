@@ -170,6 +170,9 @@ func pickBackend(cfg config.Config, opts options,
 	if opts.demo {
 		return engines.NewFake(), nil
 	}
+	// Locating the engines cannot fail: a machine with none of them is a
+	// machine with an empty list, not an error. The error return stays because
+	// the demo branch and the callers are written around one.
 	return engines.NewReal(cfg.SudoPrefix(),
-		capsFor(results, dockerBackend), capsFor(results, podmanBackend))
+		capsFor(results, dockerBackend), capsFor(results, podmanBackend)), nil
 }
