@@ -1,0 +1,363 @@
+[
+     {
+          "Id": "d1af55e7463a5d9b9ce4bc05f18b1d4df1222534de52498bea37c06416d83b44",
+          "Created": "2026-04-08T11:15:42.975670087-03:00",
+          "Path": "docker-entrypoint.sh",
+          "Args": [
+               "server",
+               "-dev"
+          ],
+          "State": {
+               "OciVersion": "1.2.1",
+               "Status": "exited",
+               "Running": false,
+               "Paused": false,
+               "Restarting": false,
+               "OOMKilled": false,
+               "Dead": false,
+               "Pid": 0,
+               "ExitCode": 0,
+               "Error": "",
+               "StartedAt": "2026-04-08T11:15:43.069092545-03:00",
+               "FinishedAt": "2026-04-08T11:45:18.838170589-03:00",
+               "CheckpointedAt": "0001-01-01T00:00:00Z",
+               "RestoredAt": "0001-01-01T00:00:00Z"
+          },
+          "Image": "6235b43459a244a3103f858965864a537d3dae3cbc59dd881d0ca376fa0eb30a",
+          "ImageDigest": "sha256:87d715029a47328172774638cabfeb04d5b356678d660621b796b6a671f93581",
+          "ImageName": "quay.io/openbao/openbao:latest",
+          "Rootfs": "",
+          "Pod": "",
+          "ResolvConfPath": "",
+          "HostnamePath": "",
+          "HostsPath": "",
+          "StaticDir": "/home/you/.local/share/containers/storage/overlay-containers/d1af55e7463a5d9b9ce4bc05f18b1d4df1222534de52498bea37c06416d83b44/userdata",
+          "OCIConfigPath": "/home/you/.local/share/containers/storage/overlay-containers/d1af55e7463a5d9b9ce4bc05f18b1d4df1222534de52498bea37c06416d83b44/userdata/config.json",
+          "OCIRuntime": "crun",
+          "ConmonPidFile": "/run/user/1000/containers/overlay-containers/d1af55e7463a5d9b9ce4bc05f18b1d4df1222534de52498bea37c06416d83b44/userdata/conmon.pid",
+          "PidFile": "/run/user/1000/containers/overlay-containers/d1af55e7463a5d9b9ce4bc05f18b1d4df1222534de52498bea37c06416d83b44/userdata/pidfile",
+          "Name": "test-bao",
+          "RestartCount": 0,
+          "Driver": "overlay",
+          "MountLabel": "",
+          "ProcessLabel": "",
+          "AppArmorProfile": "",
+          "EffectiveCaps": [
+               "CAP_CHOWN",
+               "CAP_DAC_OVERRIDE",
+               "CAP_FOWNER",
+               "CAP_FSETID",
+               "CAP_IPC_LOCK",
+               "CAP_KILL",
+               "CAP_NET_BIND_SERVICE",
+               "CAP_SETFCAP",
+               "CAP_SETGID",
+               "CAP_SETPCAP",
+               "CAP_SETUID",
+               "CAP_SYS_CHROOT"
+          ],
+          "BoundingCaps": [
+               "CAP_CHOWN",
+               "CAP_DAC_OVERRIDE",
+               "CAP_FOWNER",
+               "CAP_FSETID",
+               "CAP_IPC_LOCK",
+               "CAP_KILL",
+               "CAP_NET_BIND_SERVICE",
+               "CAP_SETFCAP",
+               "CAP_SETGID",
+               "CAP_SETPCAP",
+               "CAP_SETUID",
+               "CAP_SYS_CHROOT"
+          ],
+          "ExecIDs": [],
+          "GraphDriver": {
+               "Name": "overlay",
+               "Data": {
+                    "LowerDir": "/home/you/.local/share/containers/storage/overlay/bf37baa38992d11ce29d9a2316a5ec84e043f74b37130a24c12a2a1c07d96adf/diff:/home/you/.local/share/containers/storage/overlay/f4a0f2607aa3bcefb4dc4e0a5fcca869c7d32e9d8a1b3e91a1e9b6d8d79ccb49/diff:/home/you/.local/share/containers/storage/overlay/8f8fbcf772550bb7b93c6d6167097569b637a60cfe7b8f82dc2bae0177a38dd8/diff:/home/you/.local/share/containers/storage/overlay/5c1f40a6145e5784f3ba7e3d0f87bf2c7d20d6cbef0e45dd05b2d15ecc853849/diff:/home/you/.local/share/containers/storage/overlay/7a611dc9b3d43d6f397306ddc722b732408dddc63e2372c1240237627527a786/diff:/home/you/.local/share/containers/storage/overlay/dbe8b385d9df534332ce027d6396875183c4602ca0b7d1b0ba293b0cdcd375a1/diff:/home/you/.local/share/containers/storage/overlay/cef7ed7e2e70fa87dc6f6de98708908b7a224f29df1f0a9091ee8bda79994df2/diff:/home/you/.local/share/containers/storage/overlay/989e799e634906e94dc9a5ee2ee26fc92ad260522990f26e707861a5f52bf64e/diff",
+                    "UpperDir": "/home/you/.local/share/containers/storage/overlay/b80ec29338142d8b9d4cb89a67f29ffb3020dd58a2d7029b82eff30f54ae5eef/diff",
+                    "WorkDir": "/home/you/.local/share/containers/storage/overlay/b80ec29338142d8b9d4cb89a67f29ffb3020dd58a2d7029b82eff30f54ae5eef/work"
+               }
+          },
+          "Mounts": [
+               {
+                    "Type": "volume",
+                    "Name": "74a4958d78d69a072192fa6cbc776fc3b9995b53f65a590d4e384c228e36eacc",
+                    "Source": "/home/you/.local/share/containers/storage/volumes/74a4958d78d69a072192fa6cbc776fc3b9995b53f65a590d4e384c228e36eacc/_data",
+                    "Destination": "/openbao/file",
+                    "Driver": "local",
+                    "Mode": "",
+                    "Options": [
+                         "nodev",
+                         "exec",
+                         "nosuid",
+                         "rbind"
+                    ],
+                    "RW": true,
+                    "Propagation": "rprivate"
+               },
+               {
+                    "Type": "volume",
+                    "Name": "ce71867f7552ae8ca5ea13122d5a7bacec9ea1f1eec84e83df85c79fde942137",
+                    "Source": "/home/you/.local/share/containers/storage/volumes/ce71867f7552ae8ca5ea13122d5a7bacec9ea1f1eec84e83df85c79fde942137/_data",
+                    "Destination": "/openbao/logs",
+                    "Driver": "local",
+                    "Mode": "",
+                    "Options": [
+                         "nodev",
+                         "exec",
+                         "nosuid",
+                         "rbind"
+                    ],
+                    "RW": true,
+                    "Propagation": "rprivate"
+               }
+          ],
+          "Dependencies": [],
+          "NetworkSettings": {
+               "EndpointID": "",
+               "Gateway": "",
+               "IPAddress": "",
+               "IPPrefixLen": 0,
+               "IPv6Gateway": "",
+               "GlobalIPv6Address": "",
+               "GlobalIPv6PrefixLen": 0,
+               "MacAddress": "",
+               "Bridge": "",
+               "SandboxID": "",
+               "HairpinMode": false,
+               "LinkLocalIPv6Address": "",
+               "LinkLocalIPv6PrefixLen": 0,
+               "Ports": {
+                    "8200/tcp": [
+                         {
+                              "HostIp": "0.0.0.0",
+                              "HostPort": "8201"
+                         }
+                    ]
+               },
+               "SandboxKey": "",
+               "Networks": {
+                    "pasta": {
+                         "EndpointID": "",
+                         "Gateway": "",
+                         "IPAddress": "",
+                         "IPPrefixLen": 0,
+                         "IPv6Gateway": "",
+                         "GlobalIPv6Address": "",
+                         "GlobalIPv6PrefixLen": 0,
+                         "MacAddress": "",
+                         "NetworkID": "pasta",
+                         "DriverOpts": null,
+                         "IPAMConfig": null,
+                         "Links": null
+                    }
+               }
+          },
+          "Namespace": "",
+          "IsInfra": false,
+          "IsService": false,
+          "KubeExitCodePropagation": "invalid",
+          "lockNumber": 151,
+          "Config": {
+               "Hostname": "d1af55e7463a",
+               "Domainname": "",
+               "User": "",
+               "AttachStdin": false,
+               "AttachStdout": false,
+               "AttachStderr": false,
+               "Tty": false,
+               "OpenStdin": false,
+               "StdinOnce": false,
+               "Env": [
+                    "NAME=openbao",
+                    "\"BAO_DEV_ROOT_TOKEN_ID=dev-root-token\"",
+                    "\"BAO_DEV_LISTEN_ADDRESS=0.0.0.0:8200\"",
+                    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                    "container=podman",
+                    "VERSION=",
+                    "HOME=/root",
+                    "HOSTNAME=d1af55e7463a"
+               ],
+               "Cmd": [
+                    "server",
+                    "-dev"
+               ],
+               "Image": "quay.io/openbao/openbao:latest",
+               "Volumes": null,
+               "WorkingDir": "/",
+               "Entrypoint": [
+                    "docker-entrypoint.sh"
+               ],
+               "OnBuild": null,
+               "Labels": {
+                    "description": "OpenBao is a tool for securely accessing secrets. A secret is anything that you want to tightly control access to, such as API keys, passwords, certificates, and more. OpenBao provides a unified interface to any secret, while providing tight access control and recording a detailed audit log.",
+                    "maintainer": "OpenBao \u003copenbao@lists.openssf.org\u003e",
+                    "name": "OpenBao",
+                    "org.opencontainers.image.created": "2026-02-23T17:49:10Z",
+                    "org.opencontainers.image.description": "OpenBao 2.5.1",
+                    "org.opencontainers.image.documentation": "https://github.com/openbao/openbao/blob/main/README.md",
+                    "org.opencontainers.image.licenses": "MPL-2.0",
+                    "org.opencontainers.image.revision": "e546fae8cbfe95d8f36a351deb2cd23bfb94119e",
+                    "org.opencontainers.image.source": "https://github.com/openbao/openbao",
+                    "org.opencontainers.image.title": "bao",
+                    "org.opencontainers.image.url": "https://github.com/openbao/openbao",
+                    "org.opencontainers.image.vendor": "OpenBao",
+                    "org.opencontainers.image.version": "2.5.1",
+                    "release": "2.5.1",
+                    "revision": "e546fae8cbfe95d8f36a351deb2cd23bfb94119e",
+                    "summary": "OpenBao is a tool for securely accessing secrets.",
+                    "vendor": "OpenBao",
+                    "version": "2.5.1"
+               },
+               "Annotations": {
+                    "io.container.manager": "libpod",
+                    "org.opencontainers.image.stopSignal": "15",
+                    "org.systemd.property.KillSignal": "15",
+                    "org.systemd.property.TimeoutStopUSec": "uint64 10000000"
+               },
+               "StopSignal": "SIGTERM",
+               "HealthcheckOnFailureAction": "none",
+               "HealthLogDestination": "local",
+               "HealthcheckMaxLogCount": 5,
+               "HealthcheckMaxLogSize": 500,
+               "CreateCommand": [
+                    "podman",
+                    "run",
+                    "-d",
+                    "--name",
+                    "test-bao",
+                    "--cap-add=IPC_LOCK",
+                    "-p",
+                    "8201:8200",
+                    "-e",
+                    "\"BAO_DEV_ROOT_TOKEN_ID=dev-root-token\"",
+                    "-e",
+                    "\"BAO_DEV_LISTEN_ADDRESS=0.0.0.0:8200\"",
+                    "quay.io/openbao/openbao:latest",
+                    "server",
+                    "-dev"
+               ],
+               "Umask": "0022",
+               "Timeout": 0,
+               "StopTimeout": 10,
+               "Passwd": true,
+               "sdNotifyMode": "container",
+               "ExposedPorts": {
+                    "8200/tcp": {}
+               }
+          },
+          "HostConfig": {
+               "Binds": [
+                    "74a4958d78d69a072192fa6cbc776fc3b9995b53f65a590d4e384c228e36eacc:/openbao/file:rprivate,rw,nodev,exec,nosuid,rbind",
+                    "ce71867f7552ae8ca5ea13122d5a7bacec9ea1f1eec84e83df85c79fde942137:/openbao/logs:rprivate,rw,nodev,exec,nosuid,rbind"
+               ],
+               "CgroupManager": "systemd",
+               "CgroupMode": "private",
+               "ContainerIDFile": "",
+               "LogConfig": {
+                    "Type": "journald",
+                    "Config": null,
+                    "Path": "",
+                    "Tag": "",
+                    "Size": "-1B"
+               },
+               "NetworkMode": "pasta",
+               "PortBindings": {
+                    "8200/tcp": [
+                         {
+                              "HostIp": "0.0.0.0",
+                              "HostPort": "8201"
+                         }
+                    ]
+               },
+               "RestartPolicy": {
+                    "Name": "no",
+                    "MaximumRetryCount": 0
+               },
+               "AutoRemove": false,
+               "AutoRemoveImage": false,
+               "Annotations": {
+                    "io.container.manager": "libpod",
+                    "org.opencontainers.image.stopSignal": "15",
+                    "org.systemd.property.KillSignal": "15",
+                    "org.systemd.property.TimeoutStopUSec": "uint64 10000000"
+               },
+               "VolumeDriver": "",
+               "VolumesFrom": null,
+               "CapAdd": [
+                    "CAP_IPC_LOCK"
+               ],
+               "CapDrop": [],
+               "Dns": [],
+               "DnsOptions": [],
+               "DnsSearch": [],
+               "ExtraHosts": [],
+               "HostsFile": "",
+               "GroupAdd": [],
+               "IpcMode": "shareable",
+               "Cgroup": "",
+               "Cgroups": "default",
+               "Links": null,
+               "OomScoreAdj": 0,
+               "PidMode": "private",
+               "Privileged": false,
+               "PublishAllPorts": false,
+               "ReadonlyRootfs": false,
+               "SecurityOpt": [],
+               "Tmpfs": {},
+               "UTSMode": "private",
+               "UsernsMode": "",
+               "ShmSize": 65536000,
+               "Runtime": "oci",
+               "ConsoleSize": [
+                    0,
+                    0
+               ],
+               "Isolation": "",
+               "CpuShares": 0,
+               "Memory": 0,
+               "NanoCpus": 0,
+               "CgroupParent": "user.slice",
+               "BlkioWeight": 0,
+               "BlkioWeightDevice": null,
+               "BlkioDeviceReadBps": null,
+               "BlkioDeviceWriteBps": null,
+               "BlkioDeviceReadIOps": null,
+               "BlkioDeviceWriteIOps": null,
+               "CpuPeriod": 0,
+               "CpuQuota": 0,
+               "CpuRealtimePeriod": 0,
+               "CpuRealtimeRuntime": 0,
+               "CpusetCpus": "",
+               "CpusetMems": "",
+               "Devices": [],
+               "DiskQuota": 0,
+               "KernelMemory": 0,
+               "MemoryReservation": 0,
+               "MemorySwap": 0,
+               "MemorySwappiness": 0,
+               "OomKillDisable": false,
+               "PidsLimit": 2048,
+               "Ulimits": [
+                    {
+                         "Name": "RLIMIT_NOFILE",
+                         "Soft": 1048576,
+                         "Hard": 1048576
+                    },
+                    {
+                         "Name": "RLIMIT_NPROC",
+                         "Soft": 255840,
+                         "Hard": 255840
+                    }
+               ],
+               "CpuCount": 0,
+               "CpuPercent": 0,
+               "IOMaximumIOps": 0,
+               "IOMaximumBandwidth": 0,
+               "CgroupConf": null
+          },
+          "UseImageHosts": false,
+          "UseImageHostname": false
+     }
+]

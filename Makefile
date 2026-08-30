@@ -1,8 +1,8 @@
-# tui-template — build, test and lint.
+# tui-containers — build, test and lint.
 
 GO      ?= go
 BIN     ?= bin
-TOOL    := tui-template
+TOOL    := tui-containers
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X main.version=$(VERSION)
 # The screenshot renderer is shared by the whole family and ships with the
@@ -49,7 +49,7 @@ lint: fmt-check vet check-exec
 ## check: everything CI runs.
 check: lint test
 
-## demo: run against the in-memory sample data.
+## demo: run against the in-memory sample machine.
 demo:
 	$(GO) run ./cmd/$(TOOL) --demo
 
@@ -64,8 +64,10 @@ tidy:
 ## screenshots: re-render the README frames from --demo (needs chrome/chromium).
 screenshots: build
 	python3 $(KIT)/tools/render-screenshots.py \
-		--bin $(BIN)/$(TOOL) --name $(TOOL) --out docs/screenshots \
-		--screen main= --screen touch=t --screen help=?
+		--bin $(BIN)/$(TOOL) --name $(TOOL) --out docs/screenshots --budget 10 \
+		--screen main= --screen 'detail=\r' --screen 'logs=L' \
+		--screen images=2 --screen system=4 \
+		--screen help=?
 
 ## readme: regenerate the generated README sections from tool.json.
 readme:
@@ -82,7 +84,6 @@ compat:
 ## check-exec: assert that only a backend package starts a process.
 check-exec:
 	bash $(KIT)/tools/check-exec.sh .
-
 
 ## manifest: validate tool.json against the family schema in tui-kit.
 manifest:

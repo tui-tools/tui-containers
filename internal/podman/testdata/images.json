@@ -1,0 +1,84 @@
+[
+    {
+        "Id": "5450f1f6c02a03b7675390a41f7b082f6f24c8737f1c583d0d23c49c0f791efe",
+        "ParentId": "",
+        "RepoTags": null,
+        "RepoDigests": [
+            "docker.io/library/archlinux@sha256:b860afd5823683f7ea389ba5f00d812f4fe55f6f286dea329d2abeefa535e309",
+            "docker.io/library/archlinux@sha256:c9dc8b5d1b06d8d50ace6d42b2c93fbb1e34c9e1332d1a2102936e497d3187ae"
+        ],
+        "Size": 408368836,
+        "SharedSize": 0,
+        "VirtualSize": 408368836,
+        "Labels": {
+            "org.opencontainers.image.authors": "Santiago Torres-Arias <santiago@archlinux.org> (@SantiagoTorres), Christian Rebischke <Chris.Rebischke@archlinux.org> (@shibumi), Justin Kromlinger <hashworks@archlinux.org> (@hashworks)",
+            "org.opencontainers.image.created": "2026-08-23T00:09:32+00:00",
+            "org.opencontainers.image.description": "Official containerd image of Arch Linux, a simple, lightweight Linux distribution aimed for flexibility.",
+            "org.opencontainers.image.documentation": "https://wiki.archlinux.org/title/Docker#Arch_Linux",
+            "org.opencontainers.image.licenses": "GPL-3.0-or-later",
+            "org.opencontainers.image.revision": "34b87485162b028c8d957bdcd2674359d883cd21",
+            "org.opencontainers.image.source": "https://gitlab.archlinux.org/archlinux/archlinux-docker",
+            "org.opencontainers.image.title": "Arch Linux base Image",
+            "org.opencontainers.image.url": "https://gitlab.archlinux.org/archlinux/archlinux-docker/-/blob/master/README.md",
+            "org.opencontainers.image.version": "20260823.0.578598"
+        },
+        "Containers": 0,
+        "Digest": "sha256:b860afd5823683f7ea389ba5f00d812f4fe55f6f286dea329d2abeefa535e309",
+        "History": [
+            "docker.io/library/archlinux:latest"
+        ],
+        "Names": [
+            "docker.io/library/archlinux:latest"
+        ],
+        "Created": 1787594597,
+        "CreatedAt": "2026-08-24T18:03:17Z"
+    },
+    {
+        "Id": "39db83443324e7ef683bd854a90c6615741fecbfe005bc10228129e03af1e950",
+        "ParentId": "",
+        "RepoTags": null,
+        "RepoDigests": [
+            "docker.io/library/debian@sha256:2f65600e1252c5649d2213e1d1ea4d74253d26514dc6530102a875e429245929",
+            "docker.io/library/debian@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443"
+        ],
+        "Size": 121393081,
+        "SharedSize": 0,
+        "VirtualSize": 121393081,
+        "Labels": null,
+        "Containers": 0,
+        "Digest": "sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443",
+        "History": [
+            "docker.io/library/debian:12"
+        ],
+        "Names": [
+            "docker.io/library/debian:12"
+        ],
+        "Created": 1787529600,
+        "CreatedAt": "2026-08-24T00:00:00Z"
+    },
+    {
+        "Id": "a6f81fb630d51837271b89f8193810a5fc493fa4f30a55d7ebcdb3a66f3cc63a",
+        "ParentId": "",
+        "RepoTags": null,
+        "RepoDigests": [
+            "docker.io/library/ubuntu@sha256:1e0a86e57d247923571b75e0aaf48a1449cf8c543d51fb3e07a4a7d7bfa79316",
+            "docker.io/library/ubuntu@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517"
+        ],
+        "Size": 80677236,
+        "SharedSize": 0,
+        "VirtualSize": 80677236,
+        "Labels": {
+            "org.opencontainers.image.version": "24.04"
+        },
+        "Containers": 0,
+        "Digest": "sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517",
+        "History": [
+            "docker.io/library/ubuntu:24.04"
+        ],
+        "Names": [
+            "docker.io/library/ubuntu:24.04"
+        ],
+        "Created": 1786972191,
+        "CreatedAt": "2026-08-17T13:09:51Z"
+    }
+]

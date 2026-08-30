@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "name": "tui-template",
-  "binary": "tui-template",
-  "tagline": "A working skeleton for a new tui-tools tool",
-  "description": "The starting point for a new tool in the family. Press **Use this template**, rename it, replace one package, and you have a tool that looks and behaves like the rest.\n\nIt is not a pile of TODOs: it is a working tool. It lists the files in a directory and can update a file's timestamp, which is deliberately trivial — what matters is the shape around it, and that shape is already correct: the action table that generates the key map, the help screen and the confirm dialog; the backend interface with a real and a fake implementation; `--demo`; CI; and GoReleaser.\n\nThis `tool.json` is itself the example. It is a valid manifest, validated against [the schema](https://github.com/tui-tools/tui-kit/blob/main/schema/tool.schema.json) on every CI run, and the values are the ones you replace.",
-  "category": "template",
-  "homepage": "https://github.com/tui-tools/tui-template",
-  "repo": "https://github.com/tui-tools/tui-template",
+  "name": "tui-containers",
+  "binary": "tui-containers",
+  "tagline": "Every container on one screen, docker and podman together",
+  "description": "A terminal UI for the containers on a machine. Docker and Podman are two engines with two stores, two sets of commands and — for Podman — two scopes that do not see each other; tui-containers puts them on one list, worst first: the ones exited non-zero, the ones stuck restarting, the ones their own health check disagrees with.\n\nA container is more than its row. Open one and it says what it is using right now from a single `stats --no-stream` sample, what it is mounted on, which networks it is on, what its health check has actually been printing, and its environment — with any value whose name contains PASS, SECRET, TOKEN or KEY replaced, and the name still on screen.\n\nLogs are a pane, read with `logs --tail` and re-read on a timer: nothing is left following.\n\nChanges are previewed as the exact command line. Start, stop, restart, kill, pause, remove, `update --restart`, an image pull, `compose up -d`/`down`/`pull` for a project — with the project name and directory read from the labels Compose itself wrote. Every prune is a sentence you pick before it is a flag. There is no `exec`.\n\nRun `tui-containers --demo` to drive a sample machine with both engines, and nothing touched.",
+  "category": "containers",
+  "homepage": "https://github.com/tui-tools/tui-containers",
+  "repo": "https://github.com/tui-tools/tui-containers",
   "license": "MIT",
   "platforms": [
     "linux/amd64",
@@ -16,30 +16,82 @@
   "logo": "assets/logo.png",
   "screenshots": [
     {
-      "path": "docs/screenshots/tui-template-main.png",
-      "caption": "The list: the four bands every tool in the family draws"
+      "path": "docs/screenshots/tui-containers-main.png",
+      "caption": "Every container on one list, docker and podman together, with what is wrong at the top"
     },
     {
-      "path": "docs/screenshots/tui-template-touch.png",
-      "caption": "The confirm dialog, showing the exact command line before it runs"
+      "path": "docs/screenshots/tui-containers-detail.png",
+      "caption": "One container in full: what it is using, its mounts and networks, and what its health check has been printing"
     },
     {
-      "path": "docs/screenshots/tui-template-help.png",
-      "caption": "The help screen, generated from the action table"
+      "path": "docs/screenshots/tui-containers-logs.png",
+      "caption": "The log pane, naming the command that produced it, re-read on a timer rather than followed"
+    },
+    {
+      "path": "docs/screenshots/tui-containers-images.png",
+      "caption": "The image stores: what each one costs, which are dangling, and how many containers still use them"
+    },
+    {
+      "path": "docs/screenshots/tui-containers-system.png",
+      "caption": "What each engine says about itself: version, storage driver, rootless, compose, and what could be reclaimed"
+    },
+    {
+      "path": "docs/screenshots/tui-containers-help.png",
+      "caption": "The help screen, generated from the same key table as the hint bar"
     }
   ],
   "keys": [
     {
-      "key": "t",
-      "action": "Touch the selected file"
+      "key": "tab / 1-4",
+      "action": "Move between containers, images, volumes and networks, and the engines"
+    },
+    {
+      "key": "enter",
+      "action": "Open the selected container: what it is using, its mounts, its health check"
+    },
+    {
+      "key": "L",
+      "action": "Read the selected container's log in a pane"
+    },
+    {
+      "key": "s / x",
+      "action": "Start or stop the selected container"
+    },
+    {
+      "key": "r / K",
+      "action": "Restart it, or kill it with SIGKILL and no grace period"
+    },
+    {
+      "key": "p / u",
+      "action": "Pause or unpause it"
+    },
+    {
+      "key": "d",
+      "action": "Remove what is selected: a container, an image, a volume or a network"
+    },
+    {
+      "key": "o",
+      "action": "Change the selected container's restart policy in place"
+    },
+    {
+      "key": "U",
+      "action": "Pull the selected container's image (the container is not recreated)"
+    },
+    {
+      "key": "c",
+      "action": "compose up, down or pull for the selected container's project"
+    },
+    {
+      "key": "X",
+      "action": "Prune, with each variant spelled out before you choose one"
+    },
+    {
+      "key": "A",
+      "action": "What Podman's auto-update would do, as a dry run"
     },
     {
       "key": "/",
-      "action": "Filter the list"
-    },
-    {
-      "key": "r / ctrl+r",
-      "action": "Re-read the directory"
+      "action": "Filter the rows of the current screen"
     },
     {
       "key": "?",
@@ -52,84 +104,164 @@
   ],
   "backends": [
     {
-      "name": "coreutils",
-      "binary": "touch",
+      "name": "docker",
+      "binary": "docker",
       "versionCommand": [
-        "touch",
+        "docker",
         "--version"
       ],
-      "versionRegex": "coreutils\\) ([0-9][0-9.]*)",
-      "minimum": "8.0",
+      "versionRegex": "Docker version ([0-9]+\\.[0-9]+\\.[0-9]+)",
+      "minimum": "20.10",
       "searchPaths": [
-        "/usr/bin/touch",
-        "/bin/touch"
+        "/usr/bin/docker",
+        "/usr/local/bin/docker"
       ],
       "features": [
         {
-          "name": "no-dereference",
-          "since": "8.1"
+          "name": "format-json",
+          "since": "23.0"
         }
       ],
       "notes": [
         {
-          "range": "<8.1",
-          "impact": "`touch -h` is missing, so the timestamp of a symlink is set on its target instead of on the link"
+          "range": "<23.0",
+          "impact": "`--format json` as a shorthand does not exist, so every list is read with `--format '{{json .}}'` instead. Nothing is lost: it is the same output, and it is what the shorthand expands to"
+        },
+        {
+          "range": ">=20.10",
+          "impact": "`docker --version` answers without a daemon, which is why it is the version probe: a machine with the CLI installed and dockerd stopped reports its version and then reports the daemon as not answering, with the reason"
+        },
+        {
+          "range": ">=20.10",
+          "impact": "the label list `docker ps` prints is every label joined with commas and nothing is escaped, so a label value containing a comma can be mis-split. The Compose labels this tool reads never contain one"
+        },
+        {
+          "range": ">=20.10",
+          "impact": "reading needs whatever the docker socket needs: an account in the `docker` group or a rootless daemon reaches it directly, and otherwise the tool retries the probe once through `sudo -n` and says in the header that it did"
         }
-      ]
+      ],
+      "tested": []
+    },
+    {
+      "name": "podman",
+      "binary": "podman",
+      "versionCommand": [
+        "podman",
+        "--version"
+      ],
+      "minimum": "4.0",
+      "searchPaths": [
+        "/usr/bin/podman",
+        "/usr/local/bin/podman"
+      ],
+      "features": [
+        {
+          "name": "quadlet",
+          "since": "4.4"
+        },
+        {
+          "name": "compose",
+          "since": "4.7"
+        },
+        {
+          "name": "update-restart",
+          "since": "5.0"
+        }
+      ],
+      "notes": [
+        {
+          "range": "<4.4",
+          "impact": "Quadlet did not exist, so the `~/.config/containers/systemd` and `/etc/containers/systemd` directories are not read and no unit files are listed on the engines screen"
+        },
+        {
+          "range": "<4.7",
+          "impact": "`podman compose` does not exist, so a Compose project is listed and grouped but cannot be driven from here. Before 4.7 a project was run by calling podman-compose directly, which takes different arguments"
+        },
+        {
+          "range": "<5.0",
+          "impact": "`podman update --restart` does not exist — `podman update` arrived in 4.3 carrying only the resource limits — so the restart policy key refuses with that reason instead of running a command Podman would reject"
+        },
+        {
+          "range": ">=4.0",
+          "impact": "rootless and root are two separate sets of containers, not two views of one. Both are listed when both answer; root's are read through `sudo -n`, and where that needs a password the screen says the system scope was not read"
+        },
+        {
+          "range": ">=4.0",
+          "impact": "an infra container — the pause process holding a pod's namespaces open — is dropped from the list. It runs nothing anyone wrote, and showing one per pod would be an unexplained extra row"
+        }
+      ],
+      "tested": []
     }
   ],
   "install": {
-    "source": {
-      "available": true,
-      "command": "git clone https://github.com/tui-tools/tui-template\ncd tui-template && make demo",
-      "url": "https://github.com/tui-tools/tui-template",
-      "note": "Or press \"Use this template\" on GitHub, which is the point of it."
-    },
     "pacman": {
       "available": false,
-      "package": "tui-template",
+      "package": "tui-containers",
       "repo": "tui-tools",
       "requires_repo_setup": true,
-      "command": "sudo pacman -S tui-template",
+      "command": "sudo pacman -S tui-containers",
       "url": "https://pkgs.tui.tools/arch",
-      "note": "The template is never packaged. This entry shows your tool's shape."
+      "note": "Add the tui-tools repository to pacman.conf first."
+    },
+    "aur": {
+      "available": false,
+      "package": "tui-containers-bin",
+      "repo": "aur",
+      "command": "paru -S tui-containers-bin",
+      "url": "https://aur.archlinux.org/packages/tui-containers-bin",
+      "note": "The -bin package installs the released static binary."
     },
     "apt": {
       "available": false,
-      "package": "tui-template",
+      "package": "tui-containers",
       "repo": "tui-tools",
       "requires_repo_setup": true,
-      "command": "sudo apt install tui-template",
+      "command": "sudo apt install tui-containers",
       "url": "https://pkgs.tui.tools/deb",
-      "note": "The template is never packaged. This entry shows your tool's shape."
+      "note": "Add the tui-tools apt repository and its keyring first."
     },
     "dnf": {
       "available": false,
-      "package": "tui-template",
+      "package": "tui-containers",
       "repo": "tui-tools",
       "requires_repo_setup": true,
-      "command": "sudo dnf install tui-template",
+      "command": "sudo dnf install tui-containers",
       "url": "https://pkgs.tui.tools/rpm",
-      "note": "The template is never packaged. This entry shows your tool's shape."
+      "note": "Add the tui-tools.repo file first."
+    },
+    "zypper": {
+      "available": false,
+      "package": "tui-containers",
+      "repo": "tui-tools",
+      "requires_repo_setup": true,
+      "command": "sudo zypper install tui-containers",
+      "url": "https://pkgs.tui.tools/rpm",
+      "note": "Add the tui-tools repository first."
     },
     "binary": {
-      "available": false,
-      "pattern": "tui-template_{version}_linux_{arch}.tar.gz",
-      "command": "curl -fsSL https://github.com/tui-tools/tui-template/releases/download/v{version}/tui-template_{version}_linux_{arch}.tar.gz | tar -xz tui-template\nsudo install -m0755 tui-template /usr/local/bin/tui-template",
-      "url": "https://github.com/tui-tools/tui-template/releases",
-      "note": "The template is never released. Your tool is, once you tag v0.1.0."
+      "available": true,
+      "pattern": "tui-containers_{version}_linux_{arch}.tar.gz",
+      "command": "curl -fsSL https://github.com/tui-tools/tui-containers/releases/download/v{version}/tui-containers_{version}_linux_{arch}.tar.gz | tar -xz tui-containers\nsudo install -m0755 tui-containers /usr/local/bin/tui-containers",
+      "url": "https://github.com/tui-tools/tui-containers/releases",
+      "note": "One static binary. Verify it against checksums.txt from the same release."
+    },
+    "source": {
+      "available": true,
+      "command": "git clone https://github.com/tui-tools/tui-containers\ncd tui-containers && make build\nsudo install -m0755 bin/tui-containers /usr/local/bin/tui-containers",
+      "url": "https://github.com/tui-tools/tui-containers",
+      "note": "Needs Go 1.27 or newer."
     }
   },
   "security": {
-    "needs_sudo": "Only the touch action escalates, and only when the configured prefix is non-empty. Listing a directory is an ordinary read. Replace this sentence with what your own tool escalates for.",
+    "needs_sudo": "Rootless Podman and a Docker socket this account can reach need nothing at all. Escalation through `sudo -n`, which never prompts, is used for exactly two things: root's Podman containers, and a Docker daemon this account cannot reach otherwise — and the header says when it is being used.",
     "preview_before_run": true,
     "no_daemon": true,
     "no_network": true,
     "static_binary": true,
     "signed_releases": false,
     "config_paths": [
-      "/etc/tui-template/config.toml",
-      "~/.config/tui-template/config.toml"
+      "/etc/tui-containers/config.toml",
+      "~/.config/tui-containers/config.toml"
     ]
   },
   "maintainers": [
@@ -138,12 +270,17 @@
       "github": "edimarlnx"
     }
   ],
-  "since": "2026-08-29",
+  "since": "2026-08-30",
   "keywords": [
-    "template",
-    "scaffold",
-    "bubbletea",
-    "starter"
-  ],
-  "unreleased": true
+    "docker",
+    "podman",
+    "containers",
+    "compose",
+    "images",
+    "volumes",
+    "quadlet",
+    "oci",
+    "tui",
+    "bubbletea"
+  ]
 }

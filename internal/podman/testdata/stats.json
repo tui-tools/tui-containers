@@ -1,0 +1,20 @@
+[
+    {
+        "AvgCPU": 2.4109,
+        "ContainerID": "e8107b3a5cd6a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182930",
+        "Name": "registry-mirror",
+        "PerCPU": null,
+        "CPU": "2.41%",
+        "CPUNano": 24109000000,
+        "SystemNano": 1000000000,
+        "MemUsage": "228.9MB / 537MB",
+        "MemUsageBytes": 228900000,
+        "MemLimit": 536870912,
+        "MemPerc": "42.66%",
+        "NetIO": "1.31GB / 884MB",
+        "BlockIO": "612MB / 3.94GB",
+        "PIDS": "17",
+        "UpTime": 10800000000000,
+        "Duration": 10800000000000
+    }
+]

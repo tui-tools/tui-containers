@@ -1,0 +1,439 @@
+package docker
+
+import (
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/tui-tools/tui-containers/internal/container"
+)
+
+// This file builds every argv the Docker half of the tool can produce. They are
+// functions of their arguments and nothing else — no clock, no filesystem, no
+// process — so a test can assert on the exact command line the confirm dialog
+// will show, and the dialog and the execution consume the same value.
+
+// Bin is the binary this package drives.
+const Bin = "docker"
+
+// FeatureFormatJSON is the manifest feature that gates `--format json`.
+//
+// The shorthand arrived in Docker 23.0. Below it the same output is produced by
+// `--format '{{json .}}'`, which every version this tool supports understands —
+// so nothing is lost on an old engine, and the template form is not used
+// everywhere only because the shorthand is what a reader will recognise from
+// the preview.
+const FeatureFormatJSON = "format-json"
+
+// TemplateJSON is the format template used below the shorthand.
+const TemplateJSON = "{{json .}}"
+
+// RestartPolicies is the closed set the update form offers, which is exactly
+// what dockerd accepts.
+var RestartPolicies = []string{"no", "on-failure", "unless-stopped", "always"}
+
+// refRe bounds what may be passed to Docker as a container, image, volume or
+// network reference. Everything that reaches it comes from the engine's own
+// output, and it is checked anyway: a value that goes into an argv is a value
+// that has to be checked at the boundary, not where it was read.
+var refRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,255}$`)
+
+// pathRe bounds a Compose project directory and compose file path. Both come
+// from container labels, which are set by whoever created the container, so
+// they are treated as input rather than as fact.
+var pathRe = regexp.MustCompile(`^/[^\x00\n\r]{0,1000}$`)
+
+// policyRe bounds a restart policy, including the on-failure form with a count.
+var policyRe = regexp.MustCompile(`^(no|always|unless-stopped|on-failure(:[0-9]{1,4})?)$`)
+
+// sinceRe bounds a --since window in the form both engines accept.
+var sinceRe = regexp.MustCompile(`^[0-9]{1,6}[smhd]$`)
+
+// checkRef rejects a reference this package will not pass on.
+func checkRef(kind, ref string) error {
+	if strings.TrimSpace(ref) == "" {
+		return fmt.Errorf("docker: this %s has no reference to name it by", kind)
+	}
+	if !refRe.MatchString(ref) {
+		return fmt.Errorf("docker: %q is not a %s reference", ref, kind)
+	}
+	return nil
+}
+
+// format returns the argv pair that asks for JSON, in whichever spelling the
+// running Docker understands.
+func format(shorthand bool) []string {
+	if shorthand {
+		return []string{"--format", "json"}
+	}
+	return []string{"--format", TemplateJSON}
+}
+
+// PSArgv lists every container, running or not.
+func PSArgv(shorthand bool) []string {
+	return append([]string{Bin, "ps", "-a"}, format(shorthand)...)
+}
+
+// ImagesArgv lists the images, including the dangling ones, which `docker
+// images` shows by default as <none>:<none> rows.
+func ImagesArgv(shorthand bool) []string {
+	return append([]string{Bin, "images"}, format(shorthand)...)
+}
+
+// VolumesArgv lists the named volumes.
+func VolumesArgv(shorthand bool) []string {
+	return append([]string{Bin, "volume", "ls"}, format(shorthand)...)
+}
+
+// NetworksArgv lists the networks.
+func NetworksArgv(shorthand bool) []string {
+	return append([]string{Bin, "network", "ls"}, format(shorthand)...)
+}
+
+// InfoArgv asks the daemon about itself. It is also the probe that decides
+// whether Docker is usable at all: the binary being installed says nothing,
+// because a CLI with no daemon behind it, or an account that cannot reach the
+// socket, both answer this and nothing else.
+func InfoArgv(shorthand bool) []string {
+	return append([]string{Bin, "info"}, format(shorthand)...)
+}
+
+// DiskArgv asks what the engine is using on disk. It is read as text rather
+// than JSON: `docker system df --format json` reports one object per class with
+// engine-specific keys, while the plain table is the same five columns on every
+// version and on Podman too.
+func DiskArgv() []string { return []string{Bin, "system", "df"} }
+
+// InspectArgv reads one container in full.
+func InspectArgv(ref string) ([]string, error) {
+	if err := checkRef("container", ref); err != nil {
+		return nil, err
+	}
+	return []string{Bin, "inspect", ref}, nil
+}
+
+// StatsArgv takes one sample of what a container is using. --no-stream is what
+// makes it a read that returns: without it the command runs until it is killed,
+// and this tool starts no process it does not wait for.
+func StatsArgv(ref string, shorthand bool) ([]string, error) {
+	if err := checkRef("container", ref); err != nil {
+		return nil, err
+	}
+	argv := append([]string{Bin, "stats", "--no-stream"}, format(shorthand)...)
+	return append(argv, ref), nil
+}
+
+// LogsArgv reads the end of a container's log.
+//
+// The log pane re-reads this on a timer rather than following the stream,
+// because `docker logs -f` is a process that never returns and this tool
+// starts none. A re-read costs one invocation and gives the same picture.
+func LogsArgv(ref string, opts container.LogOptions) ([]string, error) {
+	if err := checkRef("container", ref); err != nil {
+		return nil, err
+	}
+	tail := opts.Tail
+	if tail < 1 || tail > 10000 {
+		tail = 200
+	}
+	argv := []string{Bin, "logs", "--tail", strconv.Itoa(tail)}
+	if opts.Timestamps {
+		argv = append(argv, "--timestamps")
+	}
+	if since := strings.TrimSpace(opts.Since); since != "" {
+		if !sinceRe.MatchString(since) {
+			return nil, fmt.Errorf(
+				"docker: %q is not a time window — use a number and one of "+
+					"s, m, h or d, as in 30m or 24h", since)
+		}
+		argv = append(argv, "--since", since)
+	}
+	return append(argv, ref), nil
+}
+
+// ComposeVersionArgv asks whether the Compose plugin is installed, which is
+// what decides whether the project actions are offered at all.
+func ComposeVersionArgv() []string { return []string{Bin, "compose", "version"} }
+
+// VersionArgv is the client version, which is also the manifest's version
+// command. It answers without a daemon, which is why it is the one probe that
+// works on a machine where Docker is installed and not running.
+func VersionArgv() []string { return []string{Bin, "--version"} }
+
+// lifecycle is the shared shape of the six verbs that move a container between
+// states: one verb, one container.
+var lifecycle = map[string]struct {
+	description string
+	destructive bool
+}{
+	"start":   {"Start %s", false},
+	"stop":    {"Stop %s, giving it the grace period it was created with", true},
+	"restart": {"Stop %s and start it again", true},
+	"kill":    {"Send SIGKILL to %s", true},
+	"pause":   {"Freeze every process in %s", true},
+	"unpause": {"Thaw the processes in %s", false},
+}
+
+// BuildLifecycle builds one of the six state verbs for a container.
+func BuildLifecycle(c container.Container, verb string) (container.Command, error) {
+	spec, ok := lifecycle[verb]
+	if !ok {
+		return container.Command{}, fmt.Errorf("docker: %q is not a lifecycle verb", verb)
+	}
+	if err := checkRef("container", c.Ref()); err != nil {
+		return container.Command{}, err
+	}
+	return container.Command{
+		Argv:        []string{Bin, verb, c.Ref()},
+		Description: fmt.Sprintf(spec.description, c.Name),
+		Destructive: spec.destructive,
+	}, nil
+}
+
+// BuildRemove deletes a container.
+//
+// A running container is refused unless force was chosen: `docker rm -f` kills
+// it first, and that is a different act from removing something that already
+// stopped. The refusal names the two ways forward rather than quietly adding
+// the flag.
+func BuildRemove(c container.Container, force bool) (container.Command, error) {
+	if err := checkRef("container", c.Ref()); err != nil {
+		return container.Command{}, err
+	}
+	if c.Running() && !force {
+		return container.Command{}, fmt.Errorf(
+			"%s is running: stop it first, or choose the forced removal, which "+
+				"kills it and then removes it", c.Name)
+	}
+	argv := []string{Bin, "rm"}
+	description := "Remove " + c.Name + ", which has stopped"
+	if force {
+		argv = append(argv, "-f")
+		description = "Kill " + c.Name + " and remove it"
+	}
+	return container.Command{
+		Argv:        append(argv, c.Ref()),
+		Description: description,
+		Destructive: true,
+	}, nil
+}
+
+// BuildUpdateRestart changes a container's restart policy in place.
+//
+// It is the one change here that survives a reboot without recreating
+// anything: the policy lives on the container, and `docker update` is the only
+// way to change it without destroying and rebuilding the container around it.
+func BuildUpdateRestart(c container.Container, policy string) (container.Command, error) {
+	if err := checkRef("container", c.Ref()); err != nil {
+		return container.Command{}, err
+	}
+	policy = strings.TrimSpace(policy)
+	if !policyRe.MatchString(policy) {
+		return container.Command{}, fmt.Errorf(
+			"docker: %q is not a restart policy — it is one of no, always, "+
+				"unless-stopped or on-failure[:retries]", policy)
+	}
+	return container.Command{
+		Argv:        []string{Bin, "update", "--restart=" + policy, c.Ref()},
+		Description: "Set " + c.Name + "'s restart policy to " + policy,
+		Destructive: true,
+	}, nil
+}
+
+// BuildPull fetches the image a container was created from.
+//
+// It changes nothing about the running container, and the dialog says so: the
+// container keeps the image it started with until something recreates it, and
+// pulling a newer tag under a running container is how people end up believing
+// they upgraded something they did not.
+func BuildPull(image string) (container.Command, error) {
+	if err := checkRef("image", image); err != nil {
+		return container.Command{}, err
+	}
+	return container.Command{
+		Argv:        []string{Bin, "pull", image},
+		Description: "Fetch the newest " + image + " into this engine's store",
+		// It writes to the image store and reaches the network, which is more
+		// than a read even though no container changes.
+		Destructive: true,
+	}, nil
+}
+
+// composeVerbs is the closed set of project actions, and what each one does.
+var composeVerbs = map[string]struct {
+	args        []string
+	description string
+	destructive bool
+}{
+	"up":   {[]string{"up", "-d"}, "Bring every service of %s up, in the background", true},
+	"down": {[]string{"down"}, "Stop and remove every container of %s, and the network it made", true},
+	"pull": {[]string{"pull"}, "Fetch the newest image of every service of %s", true},
+}
+
+// ComposeVerbs is the order the project picker offers them in.
+var ComposeVerbs = []string{"up", "down", "pull"}
+
+// BuildCompose runs one Compose verb for a project.
+//
+// The project is named the way Compose itself names it — the project name, the
+// directory it was brought up from and the compose files it was built from, all
+// read back out of the labels Compose wrote on the containers. Nothing is
+// guessed: a project whose labels do not carry a working directory cannot be
+// driven from here, and the refusal says why rather than running Compose in
+// whatever directory this tool happens to be in.
+func BuildCompose(p container.Project, files []string, verb string) (container.Command, error) {
+	spec, ok := composeVerbs[verb]
+	if !ok {
+		return container.Command{}, fmt.Errorf("docker: %q is not a compose verb", verb)
+	}
+	if err := checkRef("compose project", p.Name); err != nil {
+		return container.Command{}, err
+	}
+	if !pathRe.MatchString(p.WorkingDir) {
+		return container.Command{}, fmt.Errorf(
+			"the containers of %s carry no com.docker.compose.project.working_dir "+
+				"label, so there is no directory to run compose in", p.Name)
+	}
+	argv := []string{Bin, "compose", "--project-name", p.Name,
+		"--project-directory", p.WorkingDir}
+	for _, file := range files {
+		if !pathRe.MatchString(file) {
+			return container.Command{}, fmt.Errorf(
+				"docker: %q is not a compose file path", file)
+		}
+		argv = append(argv, "-f", file)
+	}
+	return container.Command{
+		Argv:        append(argv, spec.args...),
+		Description: fmt.Sprintf(spec.description, p.Name),
+		Destructive: spec.destructive,
+	}, nil
+}
+
+// BuildRemoveImage deletes an image.
+func BuildRemoveImage(i container.Image, force bool) (container.Command, error) {
+	if err := checkRef("image", i.Ref()); err != nil {
+		return container.Command{}, err
+	}
+	if i.UsedBy > 0 && !force {
+		return container.Command{}, fmt.Errorf(
+			"%s is what %d container(s) on this machine were created from: "+
+				"remove those first, or the image goes and they cannot be "+
+				"started again", i.Name(), i.UsedBy)
+	}
+	argv := []string{Bin, "rmi"}
+	if force {
+		argv = append(argv, "-f")
+	}
+	return container.Command{
+		Argv:        append(argv, i.Ref()),
+		Description: "Remove the image " + i.Name(),
+		Destructive: true,
+	}, nil
+}
+
+// BuildPruneImages removes the images nothing points at.
+//
+// The two forms are genuinely different and both are offered by name. Without
+// -a it removes the dangling images: the layers a rebuild left behind, which
+// nothing can refer to. With -a it removes every image no *existing* container
+// was created from — including the base images a build would otherwise reuse,
+// and including anything pulled for later.
+func BuildPruneImages(all bool) container.Command {
+	argv := []string{Bin, "image", "prune", "-f"}
+	description := "Remove the dangling images: the layers left behind by a rebuild"
+	if all {
+		argv = []string{Bin, "image", "prune", "-a", "-f"}
+		description = "Remove every image no existing container was created from"
+	}
+	return container.Command{
+		Argv:        argv,
+		Description: description,
+		Destructive: true,
+	}
+}
+
+// BuildRemoveVolume deletes one named volume, and with it whatever was in it.
+func BuildRemoveVolume(v container.Volume) (container.Command, error) {
+	if err := checkRef("volume", v.Name); err != nil {
+		return container.Command{}, err
+	}
+	if v.InUse {
+		return container.Command{}, fmt.Errorf(
+			"%s is mounted by a container on this machine; Docker will refuse to "+
+				"remove it, and so does this tool", v.Name)
+	}
+	return container.Command{
+		Argv:        []string{Bin, "volume", "rm", v.Name},
+		Description: "Remove the volume " + v.Name + " and everything stored in it",
+		Destructive: true,
+	}, nil
+}
+
+// BuildPruneVolumes removes every volume no container mounts.
+func BuildPruneVolumes() container.Command {
+	return container.Command{
+		Argv: []string{Bin, "volume", "prune", "-f"},
+		Description: "Remove every volume no container mounts, and the data in " +
+			"them",
+		Destructive: true,
+	}
+}
+
+// BuildRemoveNetwork deletes one network.
+func BuildRemoveNetwork(n container.Network) (container.Command, error) {
+	if err := checkRef("network", n.Name); err != nil {
+		return container.Command{}, err
+	}
+	if n.Builtin {
+		return container.Command{}, fmt.Errorf(
+			"%s is one of the networks Docker creates for itself, and it cannot "+
+				"be removed", n.Name)
+	}
+	if n.InUse {
+		return container.Command{}, fmt.Errorf(
+			"a container on this machine is attached to %s; disconnect or remove "+
+				"it first", n.Name)
+	}
+	return container.Command{
+		Argv:        []string{Bin, "network", "rm", n.Name},
+		Description: "Remove the network " + n.Name,
+		Destructive: true,
+	}, nil
+}
+
+// BuildPruneNetworks removes every network no container is on.
+func BuildPruneNetworks() container.Command {
+	return container.Command{
+		Argv:        []string{Bin, "network", "prune", "-f"},
+		Description: "Remove every network no container is attached to",
+		Destructive: true,
+	}
+}
+
+// BuildSystemPrune is the big one, and both of its choices are made explicitly.
+//
+// The bare form removes the stopped containers, the dangling images, the
+// unused networks and the build cache. -a adds every image no running
+// container uses; --volumes adds the unused named volumes, and that is the
+// flag that deletes data rather than space. Neither is ever added for the user:
+// the picker asks, and the command line shows what was chosen.
+func BuildSystemPrune(opts container.PruneOptions) container.Command {
+	argv := []string{Bin, "system", "prune", "-f"}
+	parts := []string{"the stopped containers, the dangling images, the unused " +
+		"networks and the build cache"}
+	if opts.All {
+		argv = append(argv, "-a")
+		parts = append(parts, "every image no running container uses")
+	}
+	if opts.Volumes {
+		argv = append(argv, "--volumes")
+		parts = append(parts, "the unused named volumes, with the data in them")
+	}
+	return container.Command{
+		Argv:        argv,
+		Description: "Remove " + strings.Join(parts, ", plus "),
+		Destructive: true,
+	}
+}

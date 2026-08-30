@@ -1,14 +1,17 @@
-# tui-template configuration.
+# tui-containers configuration.
 #
-# Read from /etc/tui-template/config.toml first, then
-# ~/.config/tui-template/config.toml, with the user file overriding the
-# machine-wide one. TUI_TEMPLATE_* environment variables override both, and
+# Read from /etc/tui-containers/config.toml first, then
+# ~/.config/tui-containers/config.toml, with the user file overriding the
+# machine-wide one. TUI_CONTAINERS_* environment variables override both, and
 # command line flags override everything.
 
-# This tool's own key: the directory to list. Replace it with yours.
-dir = "."
-
 # Privilege escalation prefix used for actions; "" runs the command directly.
+#
+# On this tool it decides more than it looks like. It is what reaches root's
+# Podman containers, and what a Docker daemon this account cannot talk to is
+# retried through. Setting it to "" is a real choice: rootless Podman and a
+# reachable Docker socket still work, and root's containers simply are not
+# listed.
 sudo = "sudo -n"
 
 # Path to an Omarchy-style colors.toml. Empty follows the active Omarchy
@@ -16,5 +19,5 @@ sudo = "sudo -n"
 theme = ""
 
 # Every key can also be set in the environment, upper-cased and prefixed:
-#   TUI_TEMPLATE_DIR=/srv
-#   TUI_TEMPLATE_SUDO="doas"
+#   TUI_CONTAINERS_SUDO="doas -n"
+#   TUI_CONTAINERS_THEME=/etc/tui/colors.toml

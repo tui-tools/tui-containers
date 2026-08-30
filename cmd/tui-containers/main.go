@@ -1,11 +1,8 @@
-// Command tui-template is the starting point for a new tui-tools tool. It
-// lists the files in a directory and can update a file's timestamp, which is
-// deliberately trivial: what matters is the shape around it, which is the same
-// in every tool of the family.
-//
-// Rename it, replace internal/tool with your own subject, and keep the
-// contract: read-only by default, and no change without a previewed and
-// confirmed command line.
+// Command tui-containers is a terminal UI for the containers on a machine:
+// Docker and Podman on one list, with what is wrong at the top, and the exact
+// command line of every change previewed before it runs. Docker and Podman are
+// the two engines implemented today; the code is written against a generic
+// interface so another could follow.
 package main
 
 import (
@@ -15,27 +12,31 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/tui-tools/tui-containers/internal/container"
+	"github.com/tui-tools/tui-containers/internal/engines"
+	"github.com/tui-tools/tui-kit/compat"
 	"github.com/tui-tools/tui-kit/config"
 	"github.com/tui-tools/tui-kit/theme"
-	"github.com/tui-tools/tui-template/internal/tool"
 )
 
 // toolName is the binary name, which is also the configuration directory:
-// /etc/tui-template/config.toml and ~/.config/tui-template/config.toml.
-const toolName = "tui-template"
+// /etc/tui-containers/config.toml and ~/.config/tui-containers/config.toml.
+const toolName = "tui-containers"
 
-// keyDir is this tool's own configuration key. Yours go here.
-const keyDir = "dir"
+// The manifest's names for the two engines, whose versions gate what the tool
+// will offer. Both are declared in tool.json and both are probed at startup.
+const (
+	dockerBackend = "docker"
+	podmanBackend = "podman"
+)
 
 // version is stamped by the release build (-ldflags "-X main.version=…").
 var version = "dev"
 
-// defaults declares the configuration keys the tool understands. Only these
-// are read from the environment (TUI_TEMPLATE_DIR, …), so an unrelated
-// variable can never leak into the configuration.
+// defaults declares the configuration keys tui-containers understands. Only
+// these are read from the environment (TUI_CONTAINERS_SUDO, …).
 func defaults() map[string]string {
 	return map[string]string{
-		keyDir:          ".",
 		config.KeySudo:  "sudo -n",
 		config.KeyTheme: "",
 	}
@@ -44,7 +45,7 @@ func defaults() map[string]string {
 // options holds the parsed command line.
 type options struct {
 	demo        bool
-	dir         string
+	check       bool
 	themePath   string
 	sudo        string
 	showVersion bool
@@ -59,20 +60,22 @@ func parseFlags(args []string, out *os.File) (options, error) {
 	fs := flag.NewFlagSet(toolName, flag.ContinueOnError)
 	fs.SetOutput(out)
 	fs.BoolVar(&opts.demo, "demo", false,
-		"run against sample data, without touching anything")
-	fs.StringVar(&opts.dir, "dir", "",
-		"directory to list (overrides the config file)")
+		"run against a sample machine, without touching the real one")
+	fs.BoolVar(&opts.check, "check", false,
+		"read the engines and print the parsed state as JSON, then exit "+
+			"(no UI, no changes); exit 1 if no engine can be read")
 	fs.StringVar(&opts.themePath, "theme", "",
 		"path to an Omarchy-style colors.toml (overrides the config file)")
 	fs.StringVar(&opts.sudo, "sudo", "",
 		"privilege escalation prefix, e.g. \"sudo -n\" or \"\" to disable")
 	fs.BoolVar(&opts.showVersion, "version", false, "print the version and exit")
 	fs.Usage = func() {
-		_, _ = fmt.Fprintf(out, "tui-template — a starting point for a tui-tools tool\n\n"+
-			"Usage:\n  tui-template [flags]\n\nFlags:\n")
+		_, _ = fmt.Fprintf(out, "tui-containers — the containers on this "+
+			"machine, docker and podman together\n\n"+
+			"Usage:\n  tui-containers [flags]\n\nFlags:\n")
 		fs.PrintDefaults()
 		_, _ = fmt.Fprintf(out, "\nConfiguration is read from %s, then %s, "+
-			"then TUI_TEMPLATE_* in the environment.\n",
+			"then TUI_CONTAINERS_* in the environment.\n",
 			config.SystemPathFor(toolName), config.UserPathFor(toolName))
 	}
 	if err := fs.Parse(args); err != nil {
@@ -93,8 +96,7 @@ func main() {
 	}
 }
 
-// run wires the configuration, the backend and the Bubble Tea program. Every
-// tool in the family has this function, and it is worth keeping it recognisable.
+// run wires the configuration, the backend and the Bubble Tea program.
 func run(args []string) error {
 	opts, err := parseFlags(args, os.Stdout)
 	if err != nil {
@@ -115,9 +117,22 @@ func run(args []string) error {
 	}
 	applyOverrides(&cfg, opts)
 
-	backend, err := pickBackend(cfg, opts)
+	// The engine versions are probed once, before the backend is built,
+	// because the backend needs the capability sets: whether this Docker
+	// understands `--format json` and whether this Podman can change a restart
+	// policy are both version questions, and the answers come from the
+	// manifest.
+	backendCompat := probeCompat(context.Background(), opts.demo)
+
+	backend, err := pickBackend(cfg, opts, backendCompat)
 	if err != nil {
 		return err
+	}
+
+	// --check is the non-interactive path: it reads the engines and prints,
+	// and never starts a terminal program.
+	if opts.check {
+		return runCheck(backend, backendCompat, os.Stdout)
 	}
 
 	// The configured theme is handed to the kit through the same variable the
@@ -128,11 +143,6 @@ func run(args []string) error {
 		}
 	}
 
-	// The backend's version is probed once, at startup, and shown in the
-	// header: a version nobody has tested says so there instead of surprising
-	// the user later.
-	backendCompat := probeCompat(context.Background(), opts.demo)
-
 	program := tea.NewProgram(newApp(backend, theme.New(), backendCompat),
 		tea.WithAltScreen())
 	_, err = program.Run()
@@ -142,23 +152,24 @@ func run(args []string) error {
 // applyOverrides folds the command line into the configuration, which is the
 // last and highest-precedence layer.
 func applyOverrides(cfg *config.Config, opts options) {
-	if opts.dir != "" {
-		cfg.Set(keyDir, opts.dir)
-	}
 	if opts.themePath != "" {
 		cfg.Set(config.KeyTheme, opts.themePath)
 	}
 	// An explicitly empty -sudo disables escalation, so the flag is applied
-	// whenever it was passed, empty value included.
+	// whenever it was passed, empty value included. On this tool that is a
+	// meaningful thing to do: it removes root's Podman from the picture and
+	// leaves a Docker that this account can reach on its own.
 	if opts.sudoSet {
 		cfg.Set(config.KeySudo, opts.sudo)
 	}
 }
 
 // pickBackend returns the demo backend or the real one.
-func pickBackend(cfg config.Config, opts options) (tool.Backend, error) {
+func pickBackend(cfg config.Config, opts options,
+	results []compat.Result) (container.Backend, error) {
 	if opts.demo {
-		return tool.NewFake(), nil
+		return engines.NewFake(), nil
 	}
-	return tool.New(cfg.String(keyDir, "."), cfg.SudoPrefix())
+	return engines.NewReal(cfg.SudoPrefix(),
+		capsFor(results, dockerBackend), capsFor(results, podmanBackend))
 }

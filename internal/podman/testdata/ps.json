@@ -1,0 +1,72 @@
+[
+  {
+    "AutoRemove": false,
+    "Command": [
+      "server",
+      "-dev"
+    ],
+    "CreatedAt": "4 months ago",
+    "CIDFile": "",
+    "Exited": true,
+    "ExitedAt": 1775659518,
+    "ExitCode": 0,
+    "ExposedPorts": {
+      "8200": [
+  "tcp"
+]
+    },
+    "Id": "d1af55e7463a5d9b9ce4bc05f18b1d4df1222534de52498bea37c06416d83b44",
+    "Image": "quay.io/openbao/openbao:latest",
+    "ImageID": "6235b43459a244a3103f858965864a537d3dae3cbc59dd881d0ca376fa0eb30a",
+    "IsInfra": false,
+    "Labels": {
+      "description": "OpenBao is a tool for securely accessing secrets. A secret is anything that you want to tightly control access to, such as API keys, passwords, certificates, and more. OpenBao provides a unified interface to any secret, while providing tight access control and recording a detailed audit log.",
+      "maintainer": "OpenBao \u003copenbao@lists.openssf.org\u003e",
+      "name": "OpenBao",
+      "org.opencontainers.image.created": "2026-02-23T17:49:10Z",
+      "org.opencontainers.image.description": "OpenBao 2.5.1",
+      "org.opencontainers.image.documentation": "https://github.com/openbao/openbao/blob/main/README.md",
+      "org.opencontainers.image.licenses": "MPL-2.0",
+      "org.opencontainers.image.revision": "e546fae8cbfe95d8f36a351deb2cd23bfb94119e",
+      "org.opencontainers.image.source": "https://github.com/openbao/openbao",
+      "org.opencontainers.image.title": "bao",
+      "org.opencontainers.image.url": "https://github.com/openbao/openbao",
+      "org.opencontainers.image.vendor": "OpenBao",
+      "org.opencontainers.image.version": "2.5.1",
+      "release": "2.5.1",
+      "revision": "e546fae8cbfe95d8f36a351deb2cd23bfb94119e",
+      "summary": "OpenBao is a tool for securely accessing secrets.",
+      "vendor": "OpenBao",
+      "version": "2.5.1"
+    },
+    "Mounts": [
+      "/openbao/file",
+      "/openbao/logs"
+    ],
+    "Names": [
+      "test-bao"
+    ],
+    "Namespaces": {
+      
+    },
+    "Networks": [],
+    "Pid": 0,
+    "Pod": "",
+    "PodName": "",
+    "Ports": [
+      {
+        "host_ip": "",
+        "container_port": 8200,
+        "host_port": 8201,
+        "range": 1,
+        "protocol": "tcp"
+      }
+    ],
+    "Restarts": 0,
+    "Size": null,
+    "StartedAt": 1775657743,
+    "State": "exited",
+    "Status": "Exited (0) 4 months ago",
+    "Created": 1775657742
+  }
+]
