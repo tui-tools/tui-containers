@@ -24,7 +24,7 @@ var now = time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC)
 // read loads a fixture.
 func read(t *testing.T, name string) string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join("testdata", name))
+	data, err := os.ReadFile(filepath.Join("testdata", name)) //nolint:gosec // the name is a literal in the test above, and testdata is in the repository
 	if err != nil {
 		t.Fatalf("reading the fixture: %v", err)
 	}

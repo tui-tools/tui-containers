@@ -1,5 +1,7 @@
 <img src="assets/logo.png" alt="tui-containers" width="240">
 
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/tui-tools/tui-containers/badge)](https://scorecard.dev/viewer/?uri=github.com/tui-tools/tui-containers)
+
 Every container on the machine, on one screen. **Docker and Podman together**,
 worst first, with the **exact command line of every change previewed before it
 runs**.
