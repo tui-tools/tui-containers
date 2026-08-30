@@ -20,7 +20,7 @@ import (
 // read loads a fixture.
 func read(t *testing.T, name string) string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join("testdata", name))
+	data, err := os.ReadFile(filepath.Join("testdata", name)) //nolint:gosec // the name is a literal in the test above, and testdata is in the repository
 	if err != nil {
 		t.Fatalf("reading the fixture: %v", err)
 	}
