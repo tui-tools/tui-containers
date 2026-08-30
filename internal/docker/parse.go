@@ -3,10 +3,12 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/tui-tools/tui-containers/internal/container"
 )
@@ -157,7 +159,23 @@ func ParseLabels(text string) map[string]string {
 			labels[key] += "," + fragment
 		}
 	}
+	// A label the engine really wrote cannot carry a control character: the
+	// column it was read from is one line per container, so a carriage return
+	// in it is a mangled read. It is dropped rather than kept, because these
+	// values become the Compose project and service a command is then built
+	// around, and a CR there redraws the preview over itself.
+	for name, value := range labels {
+		if hasControl(name) || hasControl(value) {
+			delete(labels, name)
+		}
+	}
 	return labels
+}
+
+// hasControl reports whether a value read from the engine carries a control
+// character.
+func hasControl(value string) bool {
+	return strings.ContainsFunc(value, unicode.IsControl)
 }
 
 // portRe reads one mapping of the Ports column: an optional host side, the
@@ -183,10 +201,22 @@ func ParsePorts(text string) []container.Port {
 		if match == nil {
 			continue
 		}
-		port := container.Port{Protocol: match[4]}
-		port.ContainerPort, _ = strconv.Atoi(match[3])
+		// The regular expression accepts any run of digits, so the range is
+		// what actually decides. A mapping whose port is 0, or long enough to
+		// overflow the conversion, is not a mapping: reading it as the zero
+		// the error used to be discarded for would publish a port nobody
+		// exposed.
+		number, ok := portNumber(match[3])
+		if !ok {
+			continue
+		}
+		port := container.Port{Protocol: match[4], ContainerPort: number}
 		if match[2] != "" {
-			port.HostPort, _ = strconv.Atoi(match[2])
+			host, ok := portNumber(match[2])
+			if !ok {
+				continue
+			}
+			port.HostPort = host
 			if ip := strings.Trim(match[1], "[]"); ip != "::" && ip != "0.0.0.0" {
 				port.HostIP = ip
 			}
@@ -199,6 +229,17 @@ func ParsePorts(text string) []container.Port {
 		out = append(out, port)
 	}
 	return out
+}
+
+// portNumber reads a TCP or UDP port number. Anything outside 1-65535 is not
+// a port, and a long enough run of digits does not fit an int at all, so the
+// conversion's error is read rather than dropped.
+func portNumber(text string) (int, bool) {
+	value, err := strconv.Atoi(text)
+	if err != nil || value < 1 || value > 65535 {
+		return 0, false
+	}
+	return value, true
 }
 
 // exitRe reads the exit status out of a status sentence: "Exited (137) 17
@@ -334,7 +375,18 @@ func ParseSize(text string) int64 {
 	if err != nil {
 		return 0
 	}
-	return int64(value * sizeUnits[strings.ToLower(match[2])])
+	bytes := value * sizeUnits[strings.ToLower(match[2])]
+	// Converting a float past what an int64 holds is undefined in Go and in
+	// practice lands on the most negative one, which would sort the image to
+	// the wrong end of the reclaim list. Nothing on a real machine is this
+	// big, so the number is clamped rather than believed.
+	if bytes >= math.MaxInt64 {
+		return math.MaxInt64
+	}
+	if bytes < 0 {
+		return 0
+	}
+	return int64(bytes)
 }
 
 // volumeRow is one line of `docker volume ls --format json`.
