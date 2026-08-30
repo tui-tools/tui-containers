@@ -255,6 +255,50 @@ check "the attention count is reported" "$bin --check" '"attentionCount": [0-9]+
 check "the unhealthy count is reported" "$bin --check" '"unhealthyCount": [0-9]+'
 check "the dangling images are counted" "$bin --check" '"dangling": [0-9]+'
 
+# --- the report block ------------------------------------------------------
+#
+# --report is read-only and unprivileged, so it is smoked as the plain lab
+# user: somebody who cannot reach the engine socket is exactly the one who most
+# needs to be able to file a usable bug. What is asserted is that it agrees
+# with the backend --check names, that it names the engines this machine really
+# has, that it still answers under --demo, and that it keeps its privacy
+# promise — the block goes into a public issue, so a home path or the host name
+# appearing in it is a bug, not a cosmetic detail.
+check "report names the selected backend" \
+  "$bin --report" \
+  '^backend: host'
+
+check "report says the run was live" \
+  "$bin --report" \
+  '^mode: live$'
+
+if [[ $docker_bin == yes ]]; then
+  check "report names the docker this machine has" \
+    "$bin --report" \
+    '^engines:.*docker [0-9]'
+fi
+if [[ $podman_bin == yes ]]; then
+  check "report names the podman this machine has" \
+    "$bin --report" \
+    '^engines:.*podman [0-9]'
+fi
+
+check "report works in demo mode too" \
+  "$bin --demo --report" \
+  '^backend: demo$'
+
+check "and says so on the mode line" \
+  "$bin --demo --report" \
+  '^mode: demo'
+
+# The distro and kernel lines are excluded from the host name search, and only
+# from that one: they come from /etc/os-release and from uname's release and
+# machine, never from the node name, so a machine whose host name is its
+# distribution ("fedora") would otherwise fail a check it passes.
+check "report leaks neither a home path nor the host name" \
+  "$bin --report | grep -vE '^(distro|kernel): ' | grep -cE '/home/|$(uname -n)' || true" \
+  '^0$'
+
 # 7. --check must never change anything. Nothing is started, nothing removed,
 #    and no image pulled — so the engines' own inventories are identical after
 #    a read.

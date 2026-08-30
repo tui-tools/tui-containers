@@ -347,6 +347,7 @@ you.
 tui-containers                 # drive the real machine
 tui-containers --demo          # sample machine, no privileges needed
 tui-containers --check         # read every engine, print JSON, exit
+tui-containers --report        # print what a bug report needs, exit
 tui-containers --theme ~/mytheme/colors.toml
 tui-containers --sudo ""       # never escalate; root's podman is then not listed
 tui-containers --version
@@ -398,6 +399,47 @@ state is reported so a zero can be compared against.
 against real machines on Ubuntu, Fedora and Arch; the assertions live in
 [`test/smoke.sh`](test/smoke.sh), every one of them is read-only, and **none of
 them pulls an image**.
+
+### `--report`, for bug reports
+
+`--report` prints, in one block, everything a maintainer has to ask for
+otherwise: the tool and kit versions, which engines this machine has and at
+which versions, the distribution, the kernel, the terminal, the theme, the
+escalation prefix, and whether the running binary came from a package. It needs
+no privileges and reads no engine — it asks each one for its version and
+nothing else — so it works on the machine where the bug is, including one where
+the socket cannot be reached at all, which is itself a thing worth reporting.
+
+```console
+$ tui-containers --report
+tui-containers 0.1.2 (kit v0.2.9)
+backend: host (version unknown: the machine itself; the engine versions are on the engines line)
+mode: live
+distro: fedora 42 (Fedora Linux 42 (Workstation Edition))
+kernel: 6.19.14-108.fc42.x86_64
+arch: x86_64
+locale: en_US.UTF-8
+term: xterm-256color
+theme: tokyo-night
+sudo: sudo -n
+root: no
+binary: /usr/bin/tui-containers (packaged)
+engines: docker 29.5.3, podman 5.8.2
+```
+
+The engines line is the one that answers most reports: an action refused by a
+Podman below 5.0 and one refused by a bug look exactly the same from the
+outside. An engine that is not installed, or whose version could not be read,
+is named there with the reason rather than left out.
+
+The block is written to be published as it is: it carries no hostname, user
+name, home path or address, and no environment variable beyond `LANG`,
+`LC_ALL`, `TERM` and `TERM_PROGRAM`. A binary living under your home directory
+is reported as being there without naming the path. `--report` works with
+`--demo` too, where it says so on the `mode` line.
+
+The bug form asks for this block first — see
+[`.github/ISSUE_TEMPLATE/bug_report.yml`](.github/ISSUE_TEMPLATE/bug_report.yml).
 
 ## What it can do to your machine
 
