@@ -3,7 +3,7 @@
   "name": "tui-containers",
   "binary": "tui-containers",
   "tagline": "Every container on one screen, docker and podman together",
-  "description": "A terminal UI for the containers on a machine. Docker and Podman are two engines with two stores, two sets of commands and — for Podman — two scopes that do not see each other; tui-containers puts them on one list, worst first: the ones exited non-zero, the ones stuck restarting, the ones their own health check disagrees with.\n\nA container is more than its row. Open one and it says what it is using right now from a single `stats --no-stream` sample, what it is mounted on, which networks it is on, what its health check has actually been printing, and its environment — with any value whose name contains PASS, SECRET, TOKEN or KEY replaced, and the name still on screen.\n\nLogs are a pane, read with `logs --tail` and re-read on a timer: nothing is left following.\n\nChanges are previewed as the exact command line. Start, stop, restart, kill, pause, remove, `update --restart`, an image pull, `compose up -d`/`down`/`pull` for a project — with the project name and directory read from the labels Compose itself wrote. Every prune is a sentence you pick before it is a flag. There is no `exec`.\n\nRun `tui-containers --demo` to drive a sample machine with both engines, and nothing touched.",
+  "description": "A terminal UI for the containers on a machine. Docker and Podman are two engines with two stores, two sets of commands and — for Podman — two scopes that do not see each other; tui-containers puts them on one list, worst first: the ones exited non-zero, the ones stuck restarting, the ones their own health check disagrees with.\n\nA container is more than its row. Open one and it says what it is using, what it is mounted on, what its health check has been printing, and its environment — with any value whose name says it is a secret replaced, and the name still on screen. Logs are a pane, re-read on a timer rather than followed.\n\nChanges are previewed as the exact command line: the lifecycle verbs, remove, `update --restart`, a pull, `compose up -d`/`down`/`pull` from the labels Compose wrote, and every prune as a sentence, not a flag.\n\n`N` runs a new container from an image — name, ports, mounts, an `--env-file` path, a restart policy — showing the whole `run -d` line first. `n` creates a volume or a network. There is no inline environment value: a secret typed into a form would sit in the preview and in `inspect`.\n\nRun `tui-containers --demo` for a sample machine with both engines.",
   "category": "containers",
   "homepage": "https://github.com/tui-tools/tui-containers",
   "repo": "https://github.com/tui-tools/tui-containers",
@@ -76,6 +76,18 @@
     {
       "key": "U",
       "action": "Pull the selected container's image (the container is not recreated)"
+    },
+    {
+      "key": "N",
+      "action": "Run a new container from an image: ports, volumes, env-file, restart policy"
+    },
+    {
+      "key": "n",
+      "action": "Create a volume or a network on the engine the selected row is on"
+    },
+    {
+      "key": "P",
+      "action": "Pull an image by reference into the selected engine's store"
     },
     {
       "key": "c",

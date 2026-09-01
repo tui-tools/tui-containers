@@ -794,8 +794,61 @@ type Capabilities struct {
 	// SupportsAutoUpdate reports that a Podman is here, which is the only
 	// engine with `auto-update`.
 	SupportsAutoUpdate bool
+	// SupportsCreate reports that something new can be made: a container from
+	// an image, a named volume, a network, or an image pulled by reference.
+	SupportsCreate bool
 	// RestartPolicies is the closed set of policies the update form offers.
 	RestartPolicies []string
+	// VolumeDrivers and NetworkDrivers are the closed sets the create form
+	// offers. They are the drivers every engine has: a driver from a plugin is
+	// a machine-specific thing nothing here can discover, and a picker that
+	// listed one it had guessed at would be guessing.
+	VolumeDrivers  []string
+	NetworkDrivers []string
+}
+
+// RunSpec is what the run form collected: one new container, described in the
+// terms the form asked for.
+//
+// The list fields are the strings the user typed, split but not parsed. What a
+// port mapping or a mount may be is the engine package's rule, checked once
+// where the argv is built, so the UI never has to know either engine's grammar.
+type RunSpec struct {
+	// Target is the engine and scope the container is created in.
+	Target Target
+	// Image is the reference the container is created from.
+	Image string
+	// Name is what the container is called, empty for an engine-chosen one.
+	Name string
+	// Ports are `host:container[/proto]` entries.
+	Ports []string
+	// Volumes are `host:container[:ro]` entries.
+	Volumes []string
+	// EnvFile is an absolute path to a file of NAME=value lines.
+	//
+	// There is deliberately no field for an inline value. An environment
+	// variable typed into a form is a secret typed into a form: it would be on
+	// screen, in the preview, in the shell history of anyone who copied the
+	// preview, and in the container's own inspect output. A file the engine
+	// reads itself is the same feature without any of that.
+	EnvFile string
+	// RestartPolicy is one of Capabilities.RestartPolicies, empty for the
+	// engine's default.
+	RestartPolicy string
+}
+
+// VolumeSpec is a named volume about to be created.
+type VolumeSpec struct {
+	Target Target
+	Name   string
+	Driver string
+}
+
+// NetworkSpec is a network about to be created.
+type NetworkSpec struct {
+	Target Target
+	Name   string
+	Driver string
 }
 
 // LogOptions is what the log pane asks for.
@@ -892,6 +945,19 @@ type Backend interface {
 	// recreate the container, and says so: the running container keeps the
 	// image it started with until something recreates it.
 	BuildPullImage(c Container) (Action, error)
+	// BuildPullRef pulls an image named by reference rather than by a
+	// container that already exists, which is the only way to fetch something
+	// this machine has never run.
+	BuildPullRef(target Target, ref string) (Action, error)
+
+	// BuildRunContainer creates and starts a new container from an image. It
+	// is always detached: this tool starts no process it does not wait for,
+	// and a foreground container would be exactly that.
+	BuildRunContainer(spec RunSpec) (Action, error)
+	// BuildCreateVolume and BuildCreateNetwork make the two things a container
+	// needs that nothing on the machine creates on its own.
+	BuildCreateVolume(spec VolumeSpec) (Action, error)
+	BuildCreateNetwork(spec NetworkSpec) (Action, error)
 
 	// BuildCompose runs one Compose verb for a project.
 	BuildCompose(p Project, verb string) (Action, error)

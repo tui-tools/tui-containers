@@ -211,6 +211,115 @@ func pullAction(c container.Container) (container.Action, error) {
 	return action, nil
 }
 
+// pullRefAction fetches an image named by reference rather than by a container
+// that already exists.
+//
+// It is the other half of the pull key, and the half that was missing: `U` on a
+// container pulls what that container was created from, which can only ever
+// refresh something the machine already has. Nothing could bring a new image
+// onto the machine at all.
+func pullRefAction(target container.Target, ref string) (container.Action, error) {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return container.Action{}, fmt.Errorf("type an image reference to pull")
+	}
+	var cmd container.Command
+	var err error
+	if target.Engine == container.EnginePodman {
+		cmd, err = podman.BuildPull(ref)
+	} else {
+		cmd, err = docker.BuildPull(ref)
+	}
+	if err != nil {
+		return container.Action{}, err
+	}
+	action := one(target, "Pull "+ref, cmd)
+	action.Body = "This fetches the image into " + target.String() +
+		"'s store and creates no container. A reference with no tag is read as " +
+		":latest, and which registry a bare name resolves through is on the " +
+		"engines screen."
+	return action, nil
+}
+
+// runAction creates and starts a new container.
+func runAction(spec container.RunSpec) (container.Action, error) {
+	var cmd container.Command
+	var err error
+	if spec.Target.Engine == container.EnginePodman {
+		cmd, err = podman.BuildRun(spec)
+	} else {
+		cmd, err = docker.BuildRun(spec)
+	}
+	if err != nil {
+		return container.Action{}, err
+	}
+	action := one(spec.Target, "Run "+runTitle(spec), cmd)
+	action.Body = "The image is pulled first if this engine does not have it, " +
+		"and the container is started detached: the command returns as soon as " +
+		"the engine has it running, and the log pane is where it says what it did."
+	action.Warning = "A container created here is created by this tool and by " +
+		"nothing else. Compose and Quadlet each own the containers they made, " +
+		"and neither will adopt this one, recreate it, or bring it back with " +
+		"the rest of a project."
+	if strings.TrimSpace(spec.EnvFile) != "" {
+		action.Warning += "\n\nThe engine reads " + strings.TrimSpace(spec.EnvFile) +
+			" itself, at the moment it creates the container. Nothing in it is " +
+			"shown here, and a later edit of that file does not reach a container " +
+			"that already exists."
+	}
+	return action, nil
+}
+
+// runTitle names a run for the dialog: the container's name when it has one,
+// and the image when the engine will choose the name.
+func runTitle(spec container.RunSpec) string {
+	if name := strings.TrimSpace(spec.Name); name != "" {
+		return name
+	}
+	return strings.TrimSpace(spec.Image)
+}
+
+// createVolumeAction makes a named volume.
+func createVolumeAction(spec container.VolumeSpec) (container.Action, error) {
+	var cmd container.Command
+	var err error
+	if spec.Target.Engine == container.EnginePodman {
+		cmd, err = podman.BuildCreateVolume(spec)
+	} else {
+		cmd, err = docker.BuildCreateVolume(spec)
+	}
+	if err != nil {
+		return container.Action{}, err
+	}
+	action := one(spec.Target, "Create volume "+spec.Name, cmd)
+	action.Body = "An empty volume, in " + spec.Target.String() + "'s store. " +
+		"It is where a container keeps what it is meant to keep across being " +
+		"removed and recreated, and until something mounts it the prune on this " +
+		"screen counts it as unused."
+	action.Destructive = false
+	return action, nil
+}
+
+// createNetworkAction makes a network.
+func createNetworkAction(spec container.NetworkSpec) (container.Action, error) {
+	var cmd container.Command
+	var err error
+	if spec.Target.Engine == container.EnginePodman {
+		cmd, err = podman.BuildCreateNetwork(spec)
+	} else {
+		cmd, err = docker.BuildCreateNetwork(spec)
+	}
+	if err != nil {
+		return container.Action{}, err
+	}
+	action := one(spec.Target, "Create network "+spec.Name, cmd)
+	action.Body = "A network of its own is what lets containers reach each other " +
+		"by name without publishing a port to the machine. Nothing is attached " +
+		"to it until a container is created on it."
+	action.Destructive = false
+	return action, nil
+}
+
 // composeAction runs one Compose verb for a project.
 func composeAction(p container.Project, verb string) (container.Action, error) {
 	var cmd container.Command

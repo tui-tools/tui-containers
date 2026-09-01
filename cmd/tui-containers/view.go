@@ -45,10 +45,12 @@ func (a *app) View() string {
 	switch a.mode {
 	case modeConfirm:
 		return a.confirm.View(a.theme, a.width, a.height)
-	case modeFilter:
+	case modeFilter, modePrompt:
 		return a.input.View(a.theme, a.width, a.height)
 	case modePicker:
 		return a.picker.View(a.theme, a.width, a.height)
+	case modeForm:
+		return a.form.view(a.theme, a.width, a.height)
 	case modeHelp:
 		return placeCenter(
 			ui.HelpScreen(a.theme, "tui-containers — keys", helpKeys(), a.width),
@@ -989,10 +991,13 @@ func (a *app) shortHelpKeys() []ui.KeyHint {
 	switch a.screen {
 	case screenImages:
 		hints = append(hints,
+			ui.KeyHint{Key: "P", Desc: "pull"},
+			ui.KeyHint{Key: "N", Desc: "run"},
 			ui.KeyHint{Key: "d", Desc: "remove"},
 			ui.KeyHint{Key: "X", Desc: "prune"})
 	case screenStorage:
 		hints = append(hints,
+			ui.KeyHint{Key: "n", Desc: "create"},
 			ui.KeyHint{Key: "d", Desc: "remove"},
 			ui.KeyHint{Key: "X", Desc: "prune"})
 	case screenSystem:
@@ -1002,6 +1007,7 @@ func (a *app) shortHelpKeys() []ui.KeyHint {
 	default:
 		hints = append(hints,
 			ui.KeyHint{Key: "enter", Desc: "detail"},
+			ui.KeyHint{Key: "N", Desc: "run"},
 			ui.KeyHint{Key: "L", Desc: "log"},
 			ui.KeyHint{Key: "s/x", Desc: "start/stop"},
 			ui.KeyHint{Key: "r", Desc: "restart"},
@@ -1044,6 +1050,9 @@ func helpKeys() []ui.KeyHint {
 		{Key: "d", Desc: "remove what is selected: a container, image, volume or network"},
 		{Key: "o", Desc: "change the selected container's restart policy"},
 		{Key: "U", Desc: "pull its image (the container itself is not recreated)"},
+		{Key: "N", Desc: "run a new container from an image, detached, previewed first"},
+		{Key: "n", Desc: "on screen 3: create a volume or a network"},
+		{Key: "P", Desc: "on screen 2: pull an image by reference"},
 		{Key: "c", Desc: "compose up, down or pull for its project"},
 		{Key: "X", Desc: "prune, with each variant spelled out before you choose"},
 		{Key: "A", Desc: "what Podman's auto-update would do, as a dry run"},
