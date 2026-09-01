@@ -335,3 +335,42 @@ func TestReadsAreReads(t *testing.T) {
 		}
 	}
 }
+
+// TestBuildCreateVolumeAndNetwork: two nouns, the same three rules, and a
+// refusal that names which one was broken.
+func TestBuildCreateVolumeAndNetwork(t *testing.T) {
+	volume, err := BuildCreateVolume(container.VolumeSpec{Name: "pgdata", Driver: "local"})
+	if err != nil {
+		t.Fatalf("BuildCreateVolume: %v", err)
+	}
+	if got, want := volume.String(), Bin+" volume create --driver local pgdata"; got != want {
+		t.Errorf("volume = %q, want %q", got, want)
+	}
+
+	network, err := BuildCreateNetwork(container.NetworkSpec{Name: "edge", Driver: "bridge"})
+	if err != nil {
+		t.Fatalf("BuildCreateNetwork: %v", err)
+	}
+	if got, want := network.String(), Bin+" network create --driver bridge edge"; got != want {
+		t.Errorf("network = %q, want %q", got, want)
+	}
+
+	// A driver is optional: without one the engine picks its own default, and
+	// the command line says so by not carrying the flag.
+	bare, err := BuildCreateVolume(container.VolumeSpec{Name: "cache"})
+	if err != nil {
+		t.Fatalf("BuildCreateVolume without a driver: %v", err)
+	}
+	if got, want := bare.String(), Bin+" volume create cache"; got != want {
+		t.Errorf("bare volume = %q, want %q", got, want)
+	}
+
+	for _, name := range []string{"", "-rm", "a name", "../escape"} {
+		if _, err := BuildCreateVolume(container.VolumeSpec{Name: name}); err == nil {
+			t.Errorf("%q was accepted as a volume name", name)
+		}
+		if _, err := BuildCreateNetwork(container.NetworkSpec{Name: name}); err == nil {
+			t.Errorf("%q was accepted as a network name", name)
+		}
+	}
+}

@@ -55,7 +55,12 @@ const (
 	modeLogs
 	modeConfirm
 	modeFilter
+	// modePrompt is the one-line text prompt that is not the filter: today it
+	// asks for an image reference to pull.
+	modePrompt
 	modePicker
+	// modeForm is a guided creation: a new container, a volume or a network.
+	modeForm
 	modeHelp
 )
 
@@ -75,6 +80,9 @@ const (
 	// pickerPrune chooses which prune to preview, with each variant spelled
 	// out rather than hidden behind a flag.
 	pickerPrune
+	// pickerFormField fills one choice field of an open form, and hands the
+	// screen back to it.
+	pickerFormField
 )
 
 // tailSteps are the log window sizes the pane cycles through.
@@ -144,10 +152,13 @@ type app struct {
 	confirm ui.Confirm
 	input   ui.Input
 	picker  ui.Picker
+	form    form
 	// pending is what an open picker will act on once it is answered.
 	pickerKind pickerKind
-	pendingC   container.Container
-	pendingT   container.Target
+	// pickerField names the form field an open picker is filling.
+	pickerField string
+	pendingC    container.Container
+	pendingT    container.Target
 
 	status     string
 	statusKind ui.StatusKind
@@ -387,9 +398,12 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Anything else (cursor blink, …) only concerns an open text input.
-	if a.mode == modeFilter {
+	if a.mode == modeFilter || a.mode == modePrompt {
 		cmd, _ := a.input.Update(msg)
 		return a, cmd
+	}
+	if a.mode == modeForm {
+		return a, a.form.updateActive(msg)
 	}
 	return a, nil
 }
@@ -410,8 +424,12 @@ func (a *app) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a.handleConfirm(msg)
 	case modeFilter:
 		return a.handleFilter(msg)
+	case modePrompt:
+		return a.handlePrompt(msg)
 	case modePicker:
 		return a.handlePicker(msg)
+	case modeForm:
+		return a.handleForm(msg)
 	case modeHelp:
 		a.mode = modeBrowse
 		return a, nil
@@ -463,6 +481,94 @@ func (a *app) handleFilter(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return a, nil
 }
 
+// handlePrompt resolves the one-line prompt that is not the filter.
+func (a *app) handlePrompt(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	cmd, _ := a.input.Update(msg)
+	if !a.input.Done {
+		return a, cmd
+	}
+	accepted, value := a.input.Accepted, strings.TrimSpace(a.input.Value())
+	a.mode = modeBrowse
+	if !accepted || value == "" {
+		a.setStatus(ui.StatusInfo, "cancelled")
+		return a, nil
+	}
+	action, err := a.backend.BuildPullRef(a.pendingT, value)
+	if err != nil {
+		a.setStatus(ui.StatusWarn, err.Error())
+		return a, nil
+	}
+	a.openConfirm(action)
+	return a, nil
+}
+
+// handleForm routes keys to an open creation form.
+func (a *app) handleForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		a.mode = modeBrowse
+		a.setStatus(ui.StatusInfo, "cancelled")
+		return a, nil
+	case "tab", "down":
+		a.form.next()
+		return a, nil
+	case "shift+tab", "up":
+		a.form.prev()
+		return a, nil
+	case "left":
+		if a.form.activeIsChoice() {
+			a.form.cycle(-1)
+			return a, nil
+		}
+	case "right":
+		if a.form.activeIsChoice() {
+			a.form.cycle(1)
+			return a, nil
+		}
+	case " ":
+		// Space opens the list for a choice field. It is not enter, because
+		// enter has to mean "review the command" from every field, and a form
+		// whose first field is a choice would otherwise be a dead end.
+		if a.form.activeIsChoice() {
+			a.pickerField, a.pickerKind = a.form.activeKey(), pickerFormField
+			a.picker = ui.NewPicker(a.form.activeLabel(),
+				a.form.activeOptions(), a.form.activeValue())
+			a.mode = modePicker
+			return a, nil
+		}
+	case "enter":
+		return a, a.submitForm()
+	}
+	return a, a.form.updateActive(msg)
+}
+
+// submitForm builds the action the open form describes and opens the confirm
+// dialog on it, or reports the builder's refusal in the status line.
+func (a *app) submitForm() tea.Cmd {
+	var action container.Action
+	var err error
+	switch a.form.kind {
+	case formRun:
+		action, err = a.backend.BuildRunContainer(a.form.runSpec())
+	case formStorage:
+		if a.form.makesNetwork() {
+			action, err = a.backend.BuildCreateNetwork(a.form.networkSpec())
+		} else {
+			action, err = a.backend.BuildCreateVolume(a.form.volumeSpec())
+		}
+	default:
+		return nil
+	}
+	if err != nil {
+		// The form stays open, because every refusal here is about one field
+		// and closing it would throw away the other five.
+		a.setStatus(ui.StatusWarn, err.Error())
+		return nil
+	}
+	a.openConfirm(action)
+	return nil
+}
+
 // handlePicker resolves the open picker and builds the action it chose.
 func (a *app) handlePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	a.picker.Update(msg)
@@ -470,9 +576,20 @@ func (a *app) handlePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 	choice, accepted := a.picker.Selected(), a.picker.Accepted
-	kind := a.pickerKind
-	a.picker, a.pickerKind = ui.Picker{}, pickerNone
+	kind, field := a.pickerKind, a.pickerField
+	a.picker, a.pickerKind, a.pickerField = ui.Picker{}, pickerNone, ""
 	a.mode = modeBrowse
+
+	// A picker that was filling a form field hands the screen back to the form
+	// rather than to the table behind it.
+	if kind == pickerFormField {
+		if accepted {
+			a.form.set(field, choice)
+		}
+		a.mode = modeForm
+		return a, nil
+	}
+
 	if !accepted {
 		a.setStatus(ui.StatusInfo, "cancelled")
 		return a, nil
@@ -766,6 +883,12 @@ func (a *app) handleActionKey(msg tea.KeyMsg) tea.Cmd {
 		return a.confirmContainer("unpause", a.backend.BuildUnpause)
 	case "U":
 		return a.confirmContainer("pull", a.backend.BuildPullImage)
+	case "N":
+		return a.openRunForm()
+	case "n":
+		return a.openStorageForm()
+	case "P":
+		return a.openPullPrompt()
 	case "d":
 		return a.confirmDelete()
 	case "o":
@@ -964,6 +1087,116 @@ func (a *app) confirmAutoUpdate() tea.Cmd {
 	}
 	a.openConfirm(action)
 	return nil
+}
+
+// openRunForm asks for the new container, seeded with the image of the row the
+// reader was on.
+//
+// It is offered on the containers and images screens, which are the two places
+// an image reference is on screen. A volume row carries no image, and a form
+// opened from one would start on an empty first field for no reason.
+func (a *app) openRunForm() tea.Cmd {
+	if a.screen != screenContainers && a.screen != screenImages {
+		a.setStatus(ui.StatusWarn,
+			"press 1 or 2 to run something new: this screen names no image")
+		return nil
+	}
+	target, ok := a.targetForCreate()
+	if !ok {
+		a.setStatus(ui.StatusWarn, "no engine answered, so nothing can be created")
+		return nil
+	}
+	if !a.caps.SupportsCreate {
+		a.setStatus(ui.StatusWarn, "no engine on this machine can be driven")
+		return nil
+	}
+	a.form = newRunForm(target, a.imageSuggestion(), a.caps.RestartPolicies)
+	a.mode = modeForm
+	return nil
+}
+
+// imageSuggestion is the reference the run form starts on: the image of the
+// selected row when there is one, and nothing otherwise.
+func (a *app) imageSuggestion() string {
+	if image, ok := a.selectedImage(); ok {
+		return image.Ref()
+	}
+	if c, ok := a.selectedContainer(); ok {
+		return c.Image
+	}
+	return ""
+}
+
+// openStorageForm asks for a new volume or network, opened on the noun of the
+// row the reader was on.
+func (a *app) openStorageForm() tea.Cmd {
+	if a.screen != screenStorage {
+		a.setStatus(ui.StatusWarn,
+			"press 3 for the volumes and networks screen to make one")
+		return nil
+	}
+	target, ok := a.targetForCreate()
+	if !ok {
+		a.setStatus(ui.StatusWarn, "no engine answered, so nothing can be created")
+		return nil
+	}
+	if !a.caps.SupportsCreate {
+		a.setStatus(ui.StatusWarn, "no engine on this machine can be driven")
+		return nil
+	}
+	what := whatVolume
+	if row, has := a.selectedStorage(); has && row.network != nil {
+		what = whatNetwork
+	}
+	a.form = newStorageForm(target, what, a.caps.VolumeDrivers,
+		a.caps.NetworkDrivers)
+	a.mode = modeForm
+	return nil
+}
+
+// openPullPrompt asks for an image reference to fetch.
+//
+// It is the other half of `U`: that one pulls what a container already on the
+// machine was created from, and this one is how something the machine has never
+// run gets here at all.
+func (a *app) openPullPrompt() tea.Cmd {
+	if a.screen != screenImages {
+		a.setStatus(ui.StatusWarn, "press 2 for the images screen to pull one")
+		return nil
+	}
+	target, ok := a.targetForCreate()
+	if !ok {
+		a.setStatus(ui.StatusWarn, "no engine answered, so nothing can be pulled")
+		return nil
+	}
+	if !a.caps.SupportsCreate {
+		a.setStatus(ui.StatusWarn, "no engine on this machine can be driven")
+		return nil
+	}
+	a.pendingT = target
+	a.input = ui.NewInput("Pull an image into "+target.String(),
+		"nginx:1.27, ghcr.io/owner/app:2.4.1", a.imageSuggestion())
+	a.input.Help = "The engine fetches it into its own store. No container is " +
+		"created, and a reference with no tag is read as :latest."
+	a.mode = modePrompt
+	return nil
+}
+
+// targetForCreate is the engine something new is made in: the one the selected
+// row belongs to, and otherwise the first engine that answered.
+//
+// The fallback is what makes the keys work on an empty machine. A reader who
+// has just installed Docker has no rows to select, and a form that refused
+// because nothing was highlighted would be refusing on the one machine where
+// creating something is the only thing to do.
+func (a *app) targetForCreate() (container.Target, bool) {
+	if target, ok := a.selectedTarget(); ok {
+		return target, true
+	}
+	if available := a.model.Available(); len(available) > 0 {
+		return available[0].Target, true
+	}
+	return container.Target{}, false
 }
 
 // openConfirm shows an action's command lines and what they do.

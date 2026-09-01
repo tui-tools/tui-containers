@@ -132,6 +132,31 @@ func TestDialogsRenderAtEveryWidth(t *testing.T) {
 			t.Fatal("the filter key did not open the prompt")
 		}
 		checkFrame(t, a.View(), width, "filter")
+
+		// The three overlays the creation keys open.
+		a.mode, a.screen = modeBrowse, screenContainers
+		a.clampCursor()
+		press(a, "N")
+		if a.mode != modeForm {
+			t.Fatalf("N did not open the run form: %q", a.status)
+		}
+		checkFrame(t, a.View(), width, "run form")
+
+		a.mode, a.screen = modeBrowse, screenStorage
+		a.clampCursor()
+		press(a, "n")
+		if a.mode != modeForm {
+			t.Fatalf("n did not open the storage form: %q", a.status)
+		}
+		checkFrame(t, a.View(), width, "storage form")
+
+		a.mode, a.screen = modeBrowse, screenImages
+		a.clampCursor()
+		press(a, "P")
+		if a.mode != modePrompt {
+			t.Fatalf("P did not open the pull prompt: %q", a.status)
+		}
+		checkFrame(t, a.View(), width, "pull prompt")
 	}
 }
 
@@ -497,6 +522,221 @@ func TestHelpListsEveryActionKey(t *testing.T) {
 		"U", "c", "X", "A", "/", "?", "q"} {
 		if !strings.Contains(listed, key) {
 			t.Errorf("the help screen does not list %q", key)
+		}
+	}
+}
+
+// TestRunFormBuildsTheExactCommand: the run form is a form only so that the
+// command line at the end of it is one nobody had to remember. What it produces
+// is asserted argv by argv, in the order the preview shows.
+func TestRunFormBuildsTheExactCommand(t *testing.T) {
+	a, backend := newTestApp(t)
+	selectByName(t, a, "shopfront-web")
+
+	press(a, "N")
+	if a.mode != modeForm {
+		t.Fatalf("N did not open the run form: %q", a.status)
+	}
+	// The image of the row the reader was on is what the form starts on.
+	if got := a.form.values[fieldImage]; got != "shopfront/web:2.4.1" {
+		t.Errorf("the form opened on image %q", got)
+	}
+
+	a.form.values[fieldImage] = "nginx:1.27"
+	a.form.values[fieldName] = "edge"
+	a.form.values[fieldPorts] = "8080:80, 5353:53/udp"
+	a.form.values[fieldVolumes] = "/srv/site:/usr/share/nginx/html:ro, static:/var/cache"
+	a.form.values[fieldEnvFile] = "/etc/edge.env"
+	a.form.values[fieldRestart] = "unless-stopped"
+	a.form.active = len(a.form.fields) - 1
+	a.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if a.mode != modeConfirm {
+		t.Fatalf("the run form did not reach a confirm: %q", a.status)
+	}
+	action := a.confirm.Payload.(container.Action)
+	if len(action.Commands) != 1 {
+		t.Fatalf("a run built %d commands", len(action.Commands))
+	}
+	want := "docker run -d --name edge -p 8080:80 -p 5353:53/udp " +
+		"-v /srv/site:/usr/share/nginx/html:ro -v static:/var/cache " +
+		"--env-file /etc/edge.env --restart unless-stopped nginx:1.27"
+	if got := action.Commands[0].String(); got != want {
+		t.Errorf("command  = %q\nwant     = %q", got, want)
+	}
+	if a.confirm.Command != backend.Preview(action.Target, action.Commands[0]) {
+		t.Error("the dialog shows a command line the runner would not run")
+	}
+	if ran := backend.Ran(); len(ran) != 0 {
+		t.Errorf("opening the dialog ran %v", ran)
+	}
+}
+
+// TestTheRunFormNeverAsksForAnEnvironmentValue is the secrets rule, checked
+// where it can actually be broken. A field for `-e NAME=value` would put the
+// value on screen, in the preview, and in the container's inspect output for
+// as long as it exists.
+func TestTheRunFormNeverAsksForAnEnvironmentValue(t *testing.T) {
+	f := newRunForm(container.Target{Engine: container.EngineDocker}, "nginx",
+		[]string{"no"})
+	for _, field := range f.fields {
+		if field.key == fieldEnvFile {
+			continue
+		}
+		if strings.Contains(strings.ToLower(field.label), "env") {
+			t.Errorf("the run form has a second environment field: %q", field.label)
+		}
+	}
+	f.values[fieldEnvFile] = "/etc/app.env"
+	spec := f.runSpec()
+	if spec.EnvFile != "/etc/app.env" {
+		t.Errorf("the env file did not reach the spec: %q", spec.EnvFile)
+	}
+}
+
+// TestTheRunFormRefusesAndStaysOpen: every refusal here is about one field, and
+// closing the form would throw away the other five.
+func TestTheRunFormRefusesAndStaysOpen(t *testing.T) {
+	cases := []struct {
+		what  string
+		field string
+		value string
+		says  string
+	}{
+		{"a port that is not a mapping", fieldPorts, "80", "port mapping"},
+		{"a relative mount source", fieldVolumes, "./data:/data", "volume name"},
+		{"a relative env file", fieldEnvFile, "app.env", "absolute path"},
+		{"a name the engine would reject", fieldName, "-rm", "name"},
+	}
+	for _, c := range cases {
+		t.Run(c.what, func(t *testing.T) {
+			a, backend := newTestApp(t)
+			selectByName(t, a, "shopfront-web")
+			press(a, "N")
+			a.form.values[fieldImage] = "nginx:1.27"
+			a.form.values[c.field] = c.value
+			a.form.active = 0
+			a.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+			if a.mode != modeForm {
+				t.Fatalf("%s did not leave the form open (mode %v, status %q)",
+					c.what, a.mode, a.status)
+			}
+			if !strings.Contains(a.status, c.says) {
+				t.Errorf("status = %q, want it to mention %q", a.status, c.says)
+			}
+			if ran := backend.Ran(); len(ran) != 0 {
+				t.Errorf("a refused form ran %v", ran)
+			}
+		})
+	}
+}
+
+// TestTheStorageFormMakesEitherNoun: one form, two nouns, and the driver set
+// follows the noun rather than staying on the one the other engine takes.
+func TestTheStorageFormMakesEitherNoun(t *testing.T) {
+	a, _ := newTestApp(t)
+	a.screen = screenStorage
+	a.clampCursor()
+
+	press(a, "n")
+	if a.mode != modeForm {
+		t.Fatalf("n did not open the storage form: %q", a.status)
+	}
+	a.form.set(fieldWhat, whatVolume)
+	a.form.values[fieldName] = "pgdata"
+	a.form.active = 0
+	a.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if a.mode != modeConfirm {
+		t.Fatalf("the volume form did not confirm: %q", a.status)
+	}
+	action := a.confirm.Payload.(container.Action)
+	if got := action.Commands[0].String(); got != "docker volume create --driver local pgdata" {
+		t.Errorf("command = %q", got)
+	}
+
+	a.mode = modeBrowse
+	press(a, "n")
+	a.form.set(fieldWhat, whatNetwork)
+	if got := a.form.values[fieldDriver]; got != "bridge" {
+		t.Errorf("switching to a network left the driver on %q", got)
+	}
+	a.form.values[fieldName] = "shopfront_edge"
+	a.form.active = 0
+	a.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if a.mode != modeConfirm {
+		t.Fatalf("the network form did not confirm: %q", a.status)
+	}
+	action = a.confirm.Payload.(container.Action)
+	if got := action.Commands[0].String(); got != "docker network create --driver bridge shopfront_edge" {
+		t.Errorf("command = %q", got)
+	}
+}
+
+// TestPullingByReference: `U` can only ever refresh an image the machine
+// already has, so `P` is the key that brings a new one onto it.
+func TestPullingByReference(t *testing.T) {
+	a, _ := newTestApp(t)
+	a.screen = screenImages
+	a.clampCursor()
+
+	press(a, "P")
+	if a.mode != modePrompt {
+		t.Fatalf("P did not open the prompt: %q", a.status)
+	}
+	a.input.Model.SetValue("ghcr.io/owner/app:2.4.1")
+	a.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if a.mode != modeConfirm {
+		t.Fatalf("the pull prompt did not confirm: %q", a.status)
+	}
+	action := a.confirm.Payload.(container.Action)
+	if got := action.Commands[0].String(); got != "docker pull ghcr.io/owner/app:2.4.1" {
+		t.Errorf("command = %q", got)
+	}
+}
+
+// TestTheCreationKeysGoToTheRowsEngine: on a machine with two engines there is
+// no such thing as "the" engine, and a container created on the wrong one is
+// a container in a store nobody was looking at.
+func TestTheCreationKeysGoToTheRowsEngine(t *testing.T) {
+	a, _ := newTestApp(t)
+	c := selectByName(t, a, "registry-mirror")
+	if c.Target.Engine != container.EnginePodman {
+		t.Fatalf("the sample machine's registry mirror moved to %v", c.Target)
+	}
+	press(a, "N")
+	if a.mode != modeForm {
+		t.Fatalf("N did not open the form: %q", a.status)
+	}
+	a.form.values[fieldName] = "mirror-2"
+	a.form.active = 0
+	a.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if a.mode != modeConfirm {
+		t.Fatalf("the form did not confirm: %q", a.status)
+	}
+	action := a.confirm.Payload.(container.Action)
+	if action.Target != c.Target {
+		t.Errorf("the run goes to %v, the row is on %v", action.Target, c.Target)
+	}
+	if !strings.HasPrefix(action.Commands[0].String(), "podman run -d") {
+		t.Errorf("the command is %q", action.Commands[0])
+	}
+}
+
+// TestCreationKeysExplainThemselvesOnTheWrongScreen: a key that silently did
+// nothing would be the worst outcome, so each refusal names the screen that
+// does answer it.
+func TestCreationKeysExplainThemselvesOnTheWrongScreen(t *testing.T) {
+	a, _ := newTestApp(t)
+	a.screen = screenSystem
+	a.clampCursor()
+	for _, key := range []string{"N", "n", "P"} {
+		press(a, key)
+		if a.mode != modeBrowse {
+			t.Fatalf("%q opened something on the engines screen", key)
+		}
+		if a.status == "" || a.statusKind != ui.StatusWarn {
+			t.Errorf("%q refused without saying why: %q", key, a.status)
 		}
 	}
 }

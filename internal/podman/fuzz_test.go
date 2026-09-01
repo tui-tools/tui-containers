@@ -247,3 +247,44 @@ func FuzzParseEnv(f *testing.F) {
 		checkEnv(t, ParseEnv([]string{entry}))
 	})
 }
+
+// FuzzBuildRun explores the one builder in this package whose input comes from
+// a keyboard rather than from the engine's own output. The property is the
+// promise the preview makes: either the value is refused with a reason, or the
+// argv it produced carries nothing that could turn one command into two.
+func FuzzBuildRun(f *testing.F) {
+	f.Add("nginx:1.27", "edge", "8080:80", "/srv/x:/srv/x:ro", "/etc/app.env", "always")
+	f.Add("", "", "", "", "", "")
+	f.Add("nginx", "-rm", "80", "./data:/data", "app.env", "no")
+	f.Add("nginx", "a b", "1:1\n2:2", "/a:/b:rw", "/e", "on-failure:3")
+	f.Fuzz(func(t *testing.T, image, name, ports, volumes, envFile, policy string) {
+		cmd, err := BuildRun(container.RunSpec{
+			Image:         image,
+			Name:          name,
+			Ports:         strings.Fields(ports),
+			Volumes:       strings.Fields(volumes),
+			EnvFile:       envFile,
+			RestartPolicy: policy,
+		})
+		if err != nil {
+			if len(cmd.Argv) != 0 {
+				t.Fatalf("a refused run still built %v", cmd.Argv)
+			}
+			return
+		}
+		for _, arg := range cmd.Argv {
+			if strings.ContainsAny(arg, "\n\r\x00") {
+				t.Fatalf("argv carries a control character: %q", arg)
+			}
+			if strings.ContainsAny(arg, "$`;&|<>") {
+				t.Fatalf("argv carries a shell metacharacter: %q", arg)
+			}
+		}
+		// The image is always last, so nothing a user typed can be read as an
+		// option to the engine.
+		if got := cmd.Argv[len(cmd.Argv)-1]; got != strings.TrimSpace(image) {
+			t.Fatalf("the last argument is %q, not the image %q", got, image)
+		}
+		oneLine(t, "description", cmd.Description)
+	})
+}

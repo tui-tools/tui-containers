@@ -258,6 +258,242 @@ func BuildPull(image string) (container.Command, error) {
 	}, nil
 }
 
+// The rules a value typed into the run form has to satisfy before it can reach
+// an argv. Everything above this point is checked too, but everything above it
+// came out of the engine's own output; these come from a keyboard, which is the
+// difference between a guard and a formality.
+var (
+	// nameRe is what Podman itself accepts as a container, volume or network
+	// name.
+	nameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$`)
+	// publishRe is one `host:container[/proto]` mapping. A bare container port is
+	// deliberately not accepted: `-p 80` publishes to a random host port, and a
+	// form that quietly did that would be a form whose preview does not say
+	// what will happen.
+	publishRe = regexp.MustCompile(`^([0-9]{1,5}):([0-9]{1,5})(/(tcp|udp|sctp))?$`)
+	// absPathRe is an absolute path this tool will hand to an engine: a mount
+	// source, a mount destination or an --env-file.
+	absPathRe = regexp.MustCompile(`^/[A-Za-z0-9._/-]{0,255}$`)
+	// driverRe is a volume or network driver name.
+	driverRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
+)
+
+// VolumeDrivers and NetworkDrivers are the closed sets the create form offers.
+// Both engines ship more, and a driver from a plugin is a machine-specific
+// thing this tool has no way to discover — so the picker offers what is always
+// there and refuses the rest by name rather than pretending to know.
+var (
+	VolumeDrivers  = []string{"local"}
+	NetworkDrivers = []string{"bridge", "macvlan", "ipvlan"}
+)
+
+// checkName rejects a name Podman would reject, in words that say which rule
+// was broken.
+func checkName(kind, name string) error {
+	if !nameRe.MatchString(name) {
+		return fmt.Errorf(
+			"podman: %q is not a %s name — it starts with a letter or a digit "+
+				"and carries only letters, digits, and _ . -", name, kind)
+	}
+	return nil
+}
+
+// checkAbsPath rejects a path that is not absolute, or that walks out of
+// itself.
+func checkAbsPath(kind, path string) error {
+	if !absPathRe.MatchString(path) {
+		return fmt.Errorf("podman: %q is not an absolute path for a %s", path, kind)
+	}
+	if strings.Contains(path, "..") {
+		return fmt.Errorf("podman: %q walks out of itself with a `..`", path)
+	}
+	return nil
+}
+
+// portArgs renders the `-p` pairs of a run, checking each mapping.
+//
+// Rootless Podman cannot publish below port 1024 unless the machine's
+// `net.ipv4.ip_unprivileged_port_start` was lowered, and that is a sysctl
+// rather than something this tool can see: the mapping is passed on as typed
+// and Podman's own refusal is the honest answer.
+func portArgs(ports []string) ([]string, error) {
+	var argv []string
+	for _, port := range ports {
+		port = strings.TrimSpace(port)
+		if port == "" {
+			continue
+		}
+		match := publishRe.FindStringSubmatch(port)
+		if match == nil {
+			return nil, fmt.Errorf(
+				"podman: %q is not a port mapping — it is host:container, with an "+
+					"optional /tcp, /udp or /sctp, as in 8080:80 or 5353:53/udp",
+				port)
+		}
+		for _, side := range []string{match[1], match[2]} {
+			number, err := strconv.Atoi(side)
+			if err != nil || number < 1 || number > 65535 {
+				return nil, fmt.Errorf(
+					"podman: %s is not a port number, which is 1 to 65535", side)
+			}
+		}
+		argv = append(argv, "-p", port)
+	}
+	return argv, nil
+}
+
+// mountArgs renders the `-v` pairs of a run, checking each mount.
+//
+// The source may be an absolute path or the name of a volume, because those are
+// the two things the engine itself accepts and a volume made a keystroke ago on
+// the storage screen is the commonest reason to open this form at all. A
+// relative path is refused: Podman reads one as a volume name, so `./data`
+// would silently create a volume rather than mount the directory meant.
+func mountArgs(mounts []string) ([]string, error) {
+	var argv []string
+	for _, mount := range mounts {
+		mount = strings.TrimSpace(mount)
+		if mount == "" {
+			continue
+		}
+		parts := strings.Split(mount, ":")
+		if len(parts) < 2 || len(parts) > 3 {
+			return nil, fmt.Errorf(
+				"podman: %q is not a mount — it is source:destination, with an "+
+					"optional :ro, as in /srv/data:/data or pgdata:/var/lib/postgresql/data",
+				mount)
+		}
+		source, destination := parts[0], parts[1]
+		if strings.HasPrefix(source, "/") {
+			if err := checkAbsPath("mount source", source); err != nil {
+				return nil, err
+			}
+		} else if err := checkName("volume", source); err != nil {
+			return nil, fmt.Errorf(
+				"podman: %q is neither an absolute path nor a volume name; a "+
+					"relative path is read as a volume name and would create one",
+				source)
+		}
+		if err := checkAbsPath("mount destination", destination); err != nil {
+			return nil, err
+		}
+		if len(parts) == 3 && parts[2] != "ro" && parts[2] != "rw" {
+			return nil, fmt.Errorf(
+				"podman: %q is not a mount option this tool passes on — it is ro "+
+					"or rw", parts[2])
+		}
+		argv = append(argv, "-v", mount)
+	}
+	return argv, nil
+}
+
+// BuildRun creates and starts a new container from an image.
+//
+// It is always `-d`. A container in the foreground is a process that does not
+// return, and this tool starts none: the promise every preview makes is that
+// the command shown is the command that ran and that it finished.
+//
+// There is no field for an inline environment value, and that is the one
+// deliberate omission here. `-e DATABASE_PASSWORD=…` would put the secret in
+// the preview, in the confirm dialog, and in `podman inspect` afterwards.
+// `--env-file` is the same feature with the value read by the engine from a
+// file whose mode the user already controls.
+func BuildRun(spec container.RunSpec) (container.Command, error) {
+	image := strings.TrimSpace(spec.Image)
+	if err := checkRef("image", image); err != nil {
+		return container.Command{}, err
+	}
+	argv := []string{Bin, "run", "-d"}
+
+	name := strings.TrimSpace(spec.Name)
+	if name != "" {
+		if err := checkName("container", name); err != nil {
+			return container.Command{}, err
+		}
+		argv = append(argv, "--name", name)
+	}
+
+	ports, err := portArgs(spec.Ports)
+	if err != nil {
+		return container.Command{}, err
+	}
+	argv = append(argv, ports...)
+
+	mounts, err := mountArgs(spec.Volumes)
+	if err != nil {
+		return container.Command{}, err
+	}
+	argv = append(argv, mounts...)
+
+	if envFile := strings.TrimSpace(spec.EnvFile); envFile != "" {
+		if err := checkAbsPath("env file", envFile); err != nil {
+			return container.Command{}, err
+		}
+		argv = append(argv, "--env-file", envFile)
+	}
+
+	if policy := strings.TrimSpace(spec.RestartPolicy); policy != "" {
+		if !policyRe.MatchString(policy) {
+			return container.Command{}, fmt.Errorf(
+				"podman: %q is not a restart policy — it is one of no, never, "+
+					"always, unless-stopped or on-failure[:retries]", policy)
+		}
+		argv = append(argv, "--restart", policy)
+	}
+
+	called := image
+	if name != "" {
+		called = name
+	}
+	return container.Command{
+		Argv:        append(argv, image),
+		Description: "Create " + called + " from " + image + " and start it in the background",
+		Destructive: true,
+	}, nil
+}
+
+// BuildCreateVolume makes a named volume.
+func BuildCreateVolume(spec container.VolumeSpec) (container.Command, error) {
+	name := strings.TrimSpace(spec.Name)
+	if err := checkName("volume", name); err != nil {
+		return container.Command{}, err
+	}
+	argv := []string{Bin, "volume", "create"}
+	if driver := strings.TrimSpace(spec.Driver); driver != "" {
+		if !driverRe.MatchString(driver) {
+			return container.Command{}, fmt.Errorf(
+				"podman: %q is not a volume driver name", driver)
+		}
+		argv = append(argv, "--driver", driver)
+	}
+	return container.Command{
+		Argv:        append(argv, name),
+		Description: "Create the named volume " + name,
+		Destructive: true,
+	}, nil
+}
+
+// BuildCreateNetwork makes a network.
+func BuildCreateNetwork(spec container.NetworkSpec) (container.Command, error) {
+	name := strings.TrimSpace(spec.Name)
+	if err := checkName("network", name); err != nil {
+		return container.Command{}, err
+	}
+	argv := []string{Bin, "network", "create"}
+	if driver := strings.TrimSpace(spec.Driver); driver != "" {
+		if !driverRe.MatchString(driver) {
+			return container.Command{}, fmt.Errorf(
+				"podman: %q is not a network driver name", driver)
+		}
+		argv = append(argv, "--driver", driver)
+	}
+	return container.Command{
+		Argv:        append(argv, name),
+		Description: "Create the network " + name,
+		Destructive: true,
+	}, nil
+}
+
 // composeVerbs is the closed set of project actions, and what each one does.
 var composeVerbs = map[string]struct {
 	args        []string

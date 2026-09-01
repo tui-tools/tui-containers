@@ -152,6 +152,9 @@ func (r *Real) Capabilities() container.Capabilities {
 		SupportsRemove:    len(r.halves) > 0,
 		SupportsUpdate:    len(r.halves) > 0,
 		SupportsPrune:     len(r.halves) > 0,
+		SupportsCreate:    len(r.halves) > 0,
+		VolumeDrivers:     docker.VolumeDrivers,
+		NetworkDrivers:    docker.NetworkDrivers,
 		RestartPolicies:   docker.RestartPolicies,
 	}
 	for _, info := range r.engines {
@@ -405,6 +408,39 @@ func (r *Real) BuildPullImage(c container.Container) (container.Action, error) {
 		return container.Action{}, err
 	}
 	return pullAction(c)
+}
+
+// BuildPullRef fetches an image named by reference.
+func (r *Real) BuildPullRef(target container.Target, ref string) (
+	container.Action, error) {
+	if err := r.reachable(target); err != nil {
+		return container.Action{}, err
+	}
+	return pullRefAction(target, ref)
+}
+
+// BuildRunContainer creates and starts a new container.
+func (r *Real) BuildRunContainer(spec container.RunSpec) (container.Action, error) {
+	if err := r.reachable(spec.Target); err != nil {
+		return container.Action{}, err
+	}
+	return runAction(spec)
+}
+
+// BuildCreateVolume makes a named volume.
+func (r *Real) BuildCreateVolume(spec container.VolumeSpec) (container.Action, error) {
+	if err := r.reachable(spec.Target); err != nil {
+		return container.Action{}, err
+	}
+	return createVolumeAction(spec)
+}
+
+// BuildCreateNetwork makes a network.
+func (r *Real) BuildCreateNetwork(spec container.NetworkSpec) (container.Action, error) {
+	if err := r.reachable(spec.Target); err != nil {
+		return container.Action{}, err
+	}
+	return createNetworkAction(spec)
 }
 
 // BuildCompose runs one Compose verb for a project.

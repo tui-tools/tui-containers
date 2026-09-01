@@ -68,6 +68,9 @@ func (f *Fake) Capabilities() container.Capabilities {
 		SupportsCompose:    true,
 		SupportsPrune:      true,
 		SupportsAutoUpdate: true,
+		SupportsCreate:     true,
+		VolumeDrivers:      docker.VolumeDrivers,
+		NetworkDrivers:     docker.NetworkDrivers,
 		RestartPolicies:    docker.RestartPolicies,
 	}
 }
@@ -186,6 +189,23 @@ func (f *Fake) BuildUpdateRestart(c container.Container, policy string) (
 
 func (f *Fake) BuildPullImage(c container.Container) (container.Action, error) {
 	return pullAction(c)
+}
+
+func (f *Fake) BuildPullRef(target container.Target, ref string) (
+	container.Action, error) {
+	return pullRefAction(target, ref)
+}
+
+func (f *Fake) BuildRunContainer(spec container.RunSpec) (container.Action, error) {
+	return runAction(spec)
+}
+
+func (f *Fake) BuildCreateVolume(spec container.VolumeSpec) (container.Action, error) {
+	return createVolumeAction(spec)
+}
+
+func (f *Fake) BuildCreateNetwork(spec container.NetworkSpec) (container.Action, error) {
+	return createNetworkAction(spec)
 }
 
 func (f *Fake) BuildCompose(p container.Project, verb string) (container.Action, error) {

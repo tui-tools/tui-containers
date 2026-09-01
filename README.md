@@ -332,6 +332,53 @@ restarting a unit, which is
 real one pulls and restarts every unit carrying the `io.containers.autoupdate`
 label, chosen by a label rather than by the person pressing the key.
 
+## Making one, with the same promise as changing one
+
+Every other key on this list acts on something already here. `N`, `n` and `P`
+are the three that put something new on the machine, and they are held to the
+same rule: you answer a few questions, you read the exact command line they
+produced, and only then does anything run.
+
+`N` opens a form with six fields — the image, a name, the published ports, the
+mounts, an `--env-file` path and a restart policy — and turns them into one
+line:
+
+```
+docker run -d --name edge -p 8080:80 -p 5353:53/udp \
+  -v /srv/site:/usr/share/nginx/html:ro -v static:/var/cache \
+  --env-file /etc/edge.env --restart unless-stopped nginx:1.27
+```
+
+It is always `-d`. A container in the foreground is a process that does not
+return, and this tool starts none.
+
+**There is no field for an environment value, and there will not be one.** A
+secret typed into a form is on screen, in the preview, in the shell history of
+anyone who copies the preview, and in `docker inspect` for as long as the
+container exists. `--env-file` is the same feature with the value read by the
+engine out of a file whose mode you already control.
+
+Every field is checked before it can reach an argv, in words that say which rule
+was broken: a port is `host:container` with an optional `/tcp`, `/udp` or
+`/sctp`, and a bare `80` is refused rather than quietly published to a random
+port; a mount source is an absolute path or the name of a volume, because a
+relative path is read by both engines as a volume name and would create one; an
+`--env-file` is absolute. A refusal leaves the form open, because it is about
+one field and closing it would throw away the other five.
+
+`n` on screen `3` creates a volume or a network, opened on whichever of the two
+the selected row is. `P` on screen `2` pulls an image by the reference you type,
+which is the only way for an image the machine has never run to reach it — `U`
+can only ever refresh one a container was already created from.
+
+All three go to the engine the selected row belongs to. On a machine with both
+engines there is no such thing as "the" engine, and a container created in the
+store nobody was looking at is a container nobody will find.
+
+A container created here is owned by this tool and by nothing else. Compose and
+Quadlet each own the containers they made, and neither will adopt this one — the
+confirm dialog says so before you answer.
+
 ## There is no `exec`
 
 An interactive shell in a container is the one thing this tool will not do, and
@@ -456,6 +503,10 @@ Every one of these is previewed and confirmed first.
 | `d` on a volume / network | `docker volume rm <name>` / `docker network rm <name>`, refused while in use |
 | `o` | `docker update --restart=<policy> <id>` |
 | `U` | `docker pull <image>` — and nothing else: the container is not recreated |
+| `P` on an image | `docker pull <ref>` for a reference you type, so a new image can reach the machine |
+| `N` | `docker run -d [--name …] [-p …] [-v …] [--env-file …] [--restart …] <image>` |
+| `n` on a volume row | `docker volume create [--driver …] <name>` |
+| `n` on a network row | `docker network create [--driver …] <name>` |
 | `c` | `docker compose --project-name … --project-directory … -f … up -d` / `down` / `pull` |
 | `X` | `docker image prune [-a] -f`, `volume prune -f`, `network prune -f`, `system prune -f [-a] [--volumes]` |
 | `A` | `podman auto-update --dry-run` |
@@ -485,6 +536,9 @@ cannot run against yours.
 | `d` | Remove what is selected: a container, an image, a volume or a network |
 | `o` | Change its restart policy in place |
 | `U` | Pull its image (the container is not recreated) |
+| `N` | Run a new container from an image, detached, previewed first |
+| `n` | On screen `3`: create a volume or a network |
+| `P` | On screen `2`: pull an image by reference |
 | `c` | `compose up`, `down` or `pull` for its project |
 | `X` | Prune, with each variant spelled out first |
 | `A` | What Podman's auto-update would do, as a dry run |
@@ -513,7 +567,13 @@ lines, `w` cycles the time window, `G` jumps to the end.
 - Remove a container, an image, a volume or a network — each refusing while
   something still uses it, and the forced variants being a choice you make.
 - Change a restart policy in place with `update --restart`.
-- Pull a container's image, saying plainly that this does not recreate it.
+- Pull a container's image, saying plainly that this does not recreate it, and
+  pull an image the machine has never run by typing its reference.
+- Run a new container from an image with `N`: a name, published ports, mounts,
+  an `--env-file` path and a restart policy, previewed as the whole `run -d`
+  line before anything is created.
+- Create a named volume or a network with `n`, on the engine the selected row
+  belongs to.
 - Drive a Compose project from the labels Compose wrote, on either engine.
 - Preview every prune as a sentence, with `-a` and `--volumes` never implied.
 - List the Podman Quadlet units and preview `auto-update --dry-run`.
@@ -524,9 +584,14 @@ lines, `w` cycles the time window, `G` jumps to the end.
 ## What v0.1 cannot do
 
 - **No `exec`.** See above: a shell is a session, not a previewable command.
-- **No `run` and no `create`.** Starting a container from nothing means an image
-  reference, a port map, an environment and a volume list, and a form that got
-  any of them subtly wrong would be a worse tool than the command line.
+- **No environment value typed into a form.** `N` takes an `--env-file` path and
+  nothing else. An inline `-e NAME=value` would put the value on screen, in the
+  preview, and in `inspect` for as long as the container exists; a file the
+  engine reads itself is the same feature without any of that.
+- **No `run` beyond those six fields.** A container needs a hundred flags and
+  this form offers six. Anything else — a capability, a user, a health check, a
+  device — belongs in a Compose file or a Quadlet unit, which is a file you can
+  read back, not a form somebody filled in once.
 - **No recreating a container after a pull.** The image is fetched; recreating
   is the job of whatever created it — a Compose project, a Quadlet unit — and
   doing it here would mean recreating it differently.
