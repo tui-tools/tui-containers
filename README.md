@@ -128,7 +128,7 @@ Upgrades then arrive with the rest of your system updates.
 ### Any distribution, static binary
 
 ```sh
-curl -fsSL https://github.com/tui-tools/tui-containers/releases/download/v0.2.0/tui-containers_0.2.0_linux_amd64.tar.gz | tar -xz tui-containers
+curl -fsSL https://github.com/tui-tools/tui-containers/releases/download/v0.2.1/tui-containers_0.2.1_linux_amd64.tar.gz | tar -xz tui-containers
 sudo install -m0755 tui-containers /usr/local/bin/tui-containers
 ```
 
