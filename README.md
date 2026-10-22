@@ -4,9 +4,8 @@
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14368/badge)](https://www.bestpractices.dev/projects/14368)
 
 <!-- stability:start -->
-> **Beta.** The family is days old and still changing. Package names, flags
-> and keys may move without notice until 1.0. Pin versions, and report what
-> breaks.
+> **Beta** tools may still change keys, flags or output before their 1.0;
+> stable tools follow semver. Pin versions, and report what breaks.
 <!-- stability:end -->
 
 Every container on the machine, on one screen. **Docker and Podman together**,
@@ -130,7 +129,7 @@ Upgrades then arrive with the rest of your system updates.
 ### Any distribution, static binary
 
 ```sh
-curl -fsSL https://github.com/tui-tools/tui-containers/releases/download/v0.2.2/tui-containers_0.2.2_linux_amd64.tar.gz | tar -xz tui-containers
+curl -fsSL https://github.com/tui-tools/tui-containers/releases/download/v0.2.4/tui-containers_0.2.4_linux_amd64.tar.gz | tar -xz tui-containers
 sudo install -m0755 tui-containers /usr/local/bin/tui-containers
 ```
 
